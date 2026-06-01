@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 - Unreleased
+## 0.1.0 - 2026-06-01
 
 - Add the source-only `RorkHook` SwiftPM product.
 - Export the public C ABI used by Swift, Objective-C, Objective-C++, C, and C++
