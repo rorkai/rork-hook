@@ -33,6 +33,7 @@ static bool RorkHookReadCStringAt(FILE *file, off_t offset, char *buffer, size_t
     return false;
 }
 
+/// Locates and caches the active dyld shared-cache file path for this process.
 const char *RorkHookLocateSharedCache(void) {
     static char cachePath[PATH_MAX];
     static dispatch_once_t onceToken;
@@ -74,6 +75,7 @@ const char *RorkHookLocateSharedCache(void) {
     return cachePath;
 }
 
+/// Resolves a private local symbol from the dyld shared cache symbol metadata.
 void *RorkHookFindSharedCacheSymbol(const char *imagePath, const char *symbolName) {
     if (imagePath == NULL || symbolName == NULL) {
         return NULL;

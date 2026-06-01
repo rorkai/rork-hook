@@ -7,11 +7,13 @@ import RorkHookTestSupport
 /// fall back to portable behaviour.
 final class RorkHookEnvironmentTests: XCTestCase {
 
+    /// Verifies the package and ABI version probes.
     func testVersionReportsPackageAndABI() {
         XCTAssertEqual(String(cString: RorkHookVersion()), "0.1.0")
         XCTAssertEqual(RorkHookABIVersion(), 1)
     }
 
+    /// Verifies that host builds never touch device-only TPRO state.
     func testTPROIsUnsupportedOnHost() {
         // TPRO hardening only exists on arm64e iOS hardware; the host build must
         // report it as unavailable rather than touch the comm page.
@@ -24,6 +26,7 @@ final class RorkHookEnvironmentTests: XCTestCase {
         XCTAssertFalse(RorkHookThreadCanWriteTPRO())
     }
 
+    /// Verifies that shared-cache discovery returns a valid C string on hosts.
     func testLocateSharedCacheReturnsAReadableString() {
         // May be empty on a host without an iOS-style cache layout, but it must
         // always return a valid, NUL-terminated C string and never crash.
@@ -49,10 +52,12 @@ final class RorkHookEnvironmentTests: XCTestCase {
         XCTAssertTrue(path.isEmpty || path.hasPrefix("/"))
     }
 
+    /// Verifies that empty VM-protection ranges are rejected deterministically.
     func testProtectMemoryRejectsEmptyRange() {
         XCTAssertEqual(RorkHookProtectMemory(0, 0, VM_PROT_READ), KERN_INVALID_ARGUMENT)
     }
 
+    /// Verifies defensive C null guards that are hidden by Swift nullability.
     func testCABIRejectsNullArguments() {
         XCTAssertTrue(RorkHookTestSupportNullArgumentGuardsPass())
     }

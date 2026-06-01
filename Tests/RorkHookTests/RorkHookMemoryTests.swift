@@ -4,6 +4,7 @@ import XCTest
 /// Tests for host-runnable memory protection and protected pointer writes.
 final class RorkHookMemoryTests: XCTestCase {
 
+    /// Reads the current VM protection for assertions after temporary writes.
     private func protection(for address: vm_address_t) throws -> vm_prot_t {
         var regionAddress = address
         var regionSize: vm_size_t = 0
@@ -30,6 +31,7 @@ final class RorkHookMemoryTests: XCTestCase {
         return info.protection
     }
 
+    /// Returns the raw byte representation of a pointer value.
     private func pointerBytes(_ pointer: UnsafeRawPointer) -> [UInt8] {
         var stored = pointer
         return withUnsafeBytes(of: &stored) { bytes in
@@ -37,6 +39,7 @@ final class RorkHookMemoryTests: XCTestCase {
         }
     }
 
+    /// Verifies pointer writes into a read-only page and protection restoration.
     func testProtectedPointerWriteMutatesReadOnlyPageAndRestoresProtection() throws {
         var address: vm_address_t = 0
         let size = vm_size_t(vm_page_size)
@@ -69,6 +72,7 @@ final class RorkHookMemoryTests: XCTestCase {
         XCTAssertEqual(try protection(for: address) & VM_PROT_WRITE, 0)
     }
 
+    /// Verifies pointer writes whose storage crosses two protected pages.
     func testProtectedPointerWriteAcrossPageBoundaryRestoresBothPages() throws {
         var address: vm_address_t = 0
         let size = vm_size_t(vm_page_size * 2)

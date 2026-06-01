@@ -90,6 +90,7 @@ typedef struct {
     void *replacement;
 } RorkHookRebindImageContext;
 
+/// Visitor that scans writable pointer sections in one Mach-O image.
 static bool RorkHookRebindImageLoadCommand(const struct load_command *command,
                                            uint32_t index,
                                            void *contextRaw) {
@@ -128,6 +129,7 @@ static bool RorkHookRebindImageLoadCommand(const struct load_command *command,
     return true;
 }
 
+/// Rebinds matching symbol-pointer slots in a single loaded image.
 void RorkHookRebindSymbolInImage(const RorkHookMachHeader *header,
                                  void *replacee,
                                  void *replacement) {
@@ -198,6 +200,7 @@ static void RorkHookHandleImageAdded(const struct mach_header *machHeader, intpt
     free(snapshot);
 }
 
+/// Registers a process-wide rebind and applies it to current and future images.
 bool RorkHookRebindSymbolGlobally(void *replacee, void *replacement, RorkHookImageFilter filter) {
     if (replacee == NULL || replacement == NULL) {
         return false;

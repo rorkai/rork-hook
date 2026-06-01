@@ -11,6 +11,7 @@ typedef struct {
     const RorkHookSegmentCommand **linkeditOut;
 } RorkHookFindSymtabContext;
 
+/// Visitor that captures `LC_SYMTAB` and, when needed, the `__LINKEDIT` segment.
 static bool RorkHookFindSymtabLoadCommand(const struct load_command *command,
                                           uint32_t index,
                                           void *contextRaw) {
@@ -88,6 +89,7 @@ static void *RorkHookScanSymbols(const RorkHookNList *symbols,
     return NULL;
 }
 
+/// Resolves a private symbol inside a dyld-loaded image.
 void *RorkHookFindSymbol(const RorkHookMachHeader *header, const char *symbolName) {
     if (header == NULL || symbolName == NULL) {
         return NULL;
@@ -110,6 +112,7 @@ void *RorkHookFindSymbol(const RorkHookMachHeader *header, const char *symbolNam
     return RorkHookScanSymbols(symbols, stringTable, symtab->strsize, symtab->nsyms, symbolName, slide);
 }
 
+/// Resolves a private symbol inside a raw file-mapped Mach-O image.
 void *RorkHookFindSymbolInFileImage(const RorkHookMachHeader *header, const char *symbolName) {
     if (header == NULL || symbolName == NULL) {
         return NULL;

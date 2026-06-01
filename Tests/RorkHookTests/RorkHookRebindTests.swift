@@ -5,6 +5,7 @@ import XCTest
 /// Tests for image-local symbol pointer rebinding.
 final class RorkHookRebindTests: XCTestCase {
 
+    /// Verifies image-local rebinding by redirecting an imported `strcmp` slot.
     func testRebindSymbolInImageRedirectsImportedFunctionSlot() throws {
         let header = try XCTUnwrap(RorkHookTestSupportImageHeader())
         XCTAssertLessThan(RorkHookTestSupportCallImportedStrcmp("a", "b"), 0)

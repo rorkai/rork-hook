@@ -31,6 +31,7 @@ static inline uint32_t RorkHookEncodeBR(uint8_t sourceRegister) {
 
 #endif /* __arm64__ */
 
+/// Builds the fixed-width arm64 absolute jump sequence used by destructive detours.
 size_t RorkHookBuildAbsoluteJump(const void *destination, uint32_t *instructions, size_t capacity) {
 #if defined(__arm64__)
     if (destination == NULL ||
@@ -64,6 +65,7 @@ size_t RorkHookBuildAbsoluteJump(const void *destination, uint32_t *instructions
 #endif
 }
 
+/// Patches a function prologue in place so it branches directly to `replacement`.
 kern_return_t RorkHookReplaceFunction(void *function, void *replacement) {
 #if defined(__arm64__)
     if (function == NULL || replacement == NULL) {

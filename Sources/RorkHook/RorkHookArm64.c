@@ -1,10 +1,12 @@
 #include "RorkHookArm64.h"
 
+/// Expands a fixed-width signed immediate into a native signed integer.
 int64_t RorkHookArm64SignExtend(uint64_t value, int bits) {
     uint64_t signBit = 1ULL << (bits - 1);
     return (int64_t)((value ^ signBit) - signBit);
 }
 
+/// Parses an `ADRP` word and reconstructs the page-relative address it targets.
 bool RorkHookDecodeADRP(uint32_t instruction,
                         uintptr_t pc,
                         uint8_t *targetRegister,
@@ -21,6 +23,7 @@ bool RorkHookDecodeADRP(uint32_t instruction,
     return true;
 }
 
+/// Parses an `ADD (immediate)` that extends an existing base register value.
 bool RorkHookDecodeADDImmediate(uint32_t instruction,
                                 uint8_t baseRegister,
                                 uintptr_t *offset) {
@@ -39,6 +42,7 @@ bool RorkHookDecodeADDImmediate(uint32_t instruction,
     return true;
 }
 
+/// Parses a scaled unsigned 64-bit `LDR` from the requested base register.
 bool RorkHookDecodeLDRUnsigned64(uint32_t instruction,
                                  uint8_t baseRegister,
                                  uintptr_t *offset) {
@@ -54,6 +58,7 @@ bool RorkHookDecodeLDRUnsigned64(uint32_t instruction,
     return true;
 }
 
+/// Parses a scaled unsigned 64-bit `LDR` without validating the base register.
 bool RorkHookDecodeLDRUnsignedOffset64(uint32_t instruction, uintptr_t *offset) {
     if ((instruction & 0xffc00000u) != 0xf9400000u) {
         return false;
@@ -64,6 +69,7 @@ bool RorkHookDecodeLDRUnsignedOffset64(uint32_t instruction, uintptr_t *offset) 
     return true;
 }
 
+/// Parses a signed pre-indexed 64-bit `LDR` and returns the byte displacement.
 bool RorkHookDecodeLDRSignedPreIndex64(uint32_t instruction, intptr_t *offset) {
     if ((instruction & 0xffe00c00u) != 0xf8400c00u) {
         return false;
@@ -74,6 +80,7 @@ bool RorkHookDecodeLDRSignedPreIndex64(uint32_t instruction, intptr_t *offset) {
     return true;
 }
 
+/// Parses an unscaled signed 64-bit `LDUR` from the requested base register.
 bool RorkHookDecodeLDUR64(uint32_t instruction,
                           uint8_t baseRegister,
                           intptr_t *offset) {
@@ -89,6 +96,7 @@ bool RorkHookDecodeLDUR64(uint32_t instruction,
     return true;
 }
 
+/// Parses a 64-bit `MOVZ` immediate and reconstructs the shifted value.
 bool RorkHookDecodeMOVZImmediate(uint32_t instruction, uintptr_t *value) {
     if ((instruction & 0x7f800000u) != 0x52800000u) {
         return false;
@@ -100,6 +108,7 @@ bool RorkHookDecodeMOVZImmediate(uint32_t instruction, uintptr_t *value) {
     return true;
 }
 
+/// Follows one unconditional `B` veneer while deliberately ignoring `BL` calls.
 uint32_t *RorkHookFollowOneBranch(uint32_t *instructions) {
     uint32_t instruction = instructions[0];
     if ((instruction & 0xfc000000u) != 0x14000000u) {

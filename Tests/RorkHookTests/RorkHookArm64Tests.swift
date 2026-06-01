@@ -4,6 +4,7 @@ import XCTest
 /// Tests for the arm64 instruction decoders used to inspect dyld/runtime stubs.
 final class RorkHookArm64Tests: XCTestCase {
 
+    /// Builds an `ADRP` instruction word with a controlled signed page offset.
     private func encodeADRP(register: UInt8, signedPages: Int64) -> UInt32 {
         let rawImmediate = UInt64(bitPattern: signedPages) & ((1 << 21) - 1)
         let immlo = UInt32(rawImmediate & 0x3) << 29
@@ -11,11 +12,13 @@ final class RorkHookArm64Tests: XCTestCase {
         return 0x9000_0000 | immlo | immhi | UInt32(register & 0x1f)
     }
 
+    /// Verifies fixed-width sign extension for positive and negative immediates.
     func testSignExtendHandlesPositiveAndNegativeValues() {
         XCTAssertEqual(RorkHookArm64SignExtend(0b0_1010, 5), 10)
         XCTAssertEqual(RorkHookArm64SignExtend(0b1_0110, 5), -10)
     }
 
+    /// Verifies that `ADRP` decoding reconstructs its page-relative address.
     func testDecodeADRPComputesPageRelativeAddress() {
         let pc = UInt(0x1_0000_1234)
         let signedPages: Int64 = -3
@@ -28,6 +31,7 @@ final class RorkHookArm64Tests: XCTestCase {
         XCTAssertEqual(page, (pc & ~0xfff) &- UInt((-signedPages) << 12))
     }
 
+    /// Verifies both legal `ADD (immediate)` byte-offset forms.
     func testDecodeADDImmediateHandlesPlainAndShiftedOffsets() {
         let register: UInt8 = 9
         let plain = UInt32(0x9100_0000) | (0x123 << 10) | (UInt32(register) << 5) | UInt32(register)
@@ -42,6 +46,7 @@ final class RorkHookArm64Tests: XCTestCase {
         XCTAssertFalse(RorkHookDecodeADDImmediate(plain, register + 1, &offset))
     }
 
+    /// Verifies scaled and signed load-offset decoders.
     func testDecodeLoadOffsets() {
         let baseRegister: UInt8 = 11
         let ldr = UInt32(0xf940_0000) | (0x44 << 10) | (UInt32(baseRegister) << 5) | 3
@@ -64,6 +69,7 @@ final class RorkHookArm64Tests: XCTestCase {
         XCTAssertFalse(RorkHookDecodeLDUR64(ldur, baseRegister + 1, &signedOffset))
     }
 
+    /// Verifies `MOVZ` immediate reconstruction.
     func testDecodeMOVZImmediate() {
         let instruction = UInt32(0xd280_0000) | (1 << 21) | (0xabcd << 5) | 4
         var value: UInt = 0
@@ -72,6 +78,7 @@ final class RorkHookArm64Tests: XCTestCase {
         XCTAssertEqual(value, 0xabcd_0000)
     }
 
+    /// Verifies that branch following accepts `B` veneers but rejects `BL` calls.
     func testFollowOneBranchReturnsBranchTargetOrOriginalPointer() {
         var words: [UInt32] = [
             0x1400_0002,

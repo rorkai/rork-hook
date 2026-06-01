@@ -17,10 +17,10 @@
 
 #if RORK_HOOK_DEVICE_ARM64
 
-// Mach trap -14 is `_kernelrpc_mach_vm_protect_trap`. Calling it directly keeps
-// memory re-protection working even when the libsystem `vm_protect` stub has
-// itself been rebound by a hook. On arm64 `vm_address_t`/`vm_size_t` are 64-bit,
-// matching the trap's `mach_vm_address_t`/`mach_vm_size_t` argument widths.
+/// Mach trap -14 is `_kernelrpc_mach_vm_protect_trap`. Calling it directly keeps
+/// memory re-protection working even when the libsystem `vm_protect` stub has
+/// itself been rebound by a hook. On arm64 `vm_address_t`/`vm_size_t` are 64-bit,
+/// matching the trap's `mach_vm_address_t`/`mach_vm_size_t` argument widths.
 extern kern_return_t RorkHookMachVMProtectTrap(mach_port_name_t target,
                                                vm_address_t address,
                                                vm_size_t size,
@@ -36,8 +36,8 @@ __asm__(
     "    ret\n"
 );
 
-// The TPRO write-enable state for the current thread lives in bit 0x24 of the
-// implementation-defined system register `s3_6_c15_c1_5`.
+/// The TPRO write-enable state for the current thread lives in bit 0x24 of the
+/// implementation-defined system register `s3_6_c15_c1_5`.
 extern uint64_t RorkHookThreadTPROWriteEnabledRaw(void);
 __asm__(
     ".text\n"
@@ -53,12 +53,14 @@ __asm__(
 #define RORK_HOOK_COMM_PAGE_TPRO_WRITE_ENABLE  (RORK_HOOK_COMM_PAGE_START + 0x0D0)
 #define RORK_HOOK_COMM_PAGE_TPRO_WRITE_DISABLE (RORK_HOOK_COMM_PAGE_START + 0x0D8)
 
+/// Reads a 64-bit value from the fixed comm-page slot used by arm64e TPRO.
 static inline uint64_t RorkHookCommPageValue(uintptr_t address) {
     return *(const volatile uint64_t *)address;
 }
 
 #endif /* RORK_HOOK_DEVICE_ARM64 */
 
+/// Applies VM protection to a range, using the direct trap path on arm64 iOS.
 kern_return_t RorkHookProtectMemory(vm_address_t address,
                                     vm_size_t size,
                                     vm_prot_t protection) {
@@ -73,10 +75,12 @@ kern_return_t RorkHookProtectMemory(vm_address_t address,
 #endif
 }
 
+/// Marks a range writable with copy-on-write semantics.
 kern_return_t RorkHookMakeMemoryWritable(vm_address_t address, vm_size_t size) {
     return RorkHookProtectMemory(address, size, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
 }
 
+/// Marks a range readable and executable after code patching.
 kern_return_t RorkHookMakeMemoryExecutable(vm_address_t address, vm_size_t size) {
     return RorkHookProtectMemory(address, size, VM_PROT_READ | VM_PROT_EXECUTE);
 }
@@ -106,6 +110,7 @@ static vm_prot_t RorkHookProtectionForPage(vm_address_t page) {
     return protection;
 }
 
+/// Opens a TPRO write window when VM protection cannot make a slot writable.
 static bool RorkHookAllowTPROWrites(void (**restoreReadOnly)(void)) {
     if (!RorkHookSupportsTPRO()) {
         return false;
@@ -125,6 +130,7 @@ static bool RorkHookAllowTPROWrites(void (**restoreReadOnly)(void)) {
     return true;
 }
 
+/// Writes one pointer-sized value while restoring page protections afterward.
 bool RorkHookStoreProtectedPointer(void *slot,
                                    const void *value,
                                    vm_prot_t protection) {
@@ -181,6 +187,7 @@ bool RorkHookStoreProtectedPointer(void *slot,
     return firstRestore == KERN_SUCCESS && lastRestore == KERN_SUCCESS;
 }
 
+/// Reports whether the current platform exposes the arm64e TPRO comm-page hooks.
 bool RorkHookSupportsTPRO(void) {
 #if RORK_HOOK_DEVICE_ARM64
     return RorkHookCommPageValue(RORK_HOOK_COMM_PAGE_TPRO_WRITE_ENABLE) != 0;
@@ -189,6 +196,7 @@ bool RorkHookSupportsTPRO(void) {
 #endif
 }
 
+/// Reports whether this thread currently has its TPRO write bit set.
 bool RorkHookThreadCanWriteTPRO(void) {
 #if RORK_HOOK_DEVICE_ARM64
     return RorkHookSupportsTPRO() && RorkHookThreadTPROWriteEnabledRaw() != 0;
@@ -197,6 +205,7 @@ bool RorkHookThreadCanWriteTPRO(void) {
 #endif
 }
 
+/// Enables the calling thread's TPRO write state on supported devices.
 void RorkHookBeginThreadTPROWrite(void) {
 #if RORK_HOOK_DEVICE_ARM64
     if (!RorkHookSupportsTPRO()) {
@@ -212,6 +221,7 @@ void RorkHookBeginThreadTPROWrite(void) {
 #endif
 }
 
+/// Disables the calling thread's TPRO write state on supported devices.
 void RorkHookEndThreadTPROWrite(void) {
 #if RORK_HOOK_DEVICE_ARM64
     if (!RorkHookSupportsTPRO()) {

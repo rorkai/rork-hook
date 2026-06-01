@@ -22,6 +22,7 @@ final class RorkHookFunctionTests: XCTestCase {
         return target
     }
 
+    /// Verifies that absolute-jump generation encodes the target and final branch.
     func testBuildAbsoluteJumpEncodesTargetAndBranch() throws {
         let destination = UInt(0x0000_0001_AABB_CCDD)
         let destinationPointer = try XCTUnwrap(UnsafeRawPointer(bitPattern: destination))
@@ -40,6 +41,7 @@ final class RorkHookFunctionTests: XCTestCase {
 #endif
     }
 
+    /// Verifies that absolute-jump generation refuses undersized buffers.
     func testBuildAbsoluteJumpRejectsUndersizedBuffer() throws {
         let destinationPointer = try XCTUnwrap(UnsafeRawPointer(bitPattern: UInt(0x1000)))
         var words = [UInt32](repeating: 0, count: 2)

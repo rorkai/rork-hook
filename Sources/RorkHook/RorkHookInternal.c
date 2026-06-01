@@ -8,6 +8,7 @@
 #include <ptrauth.h>
 #endif
 
+/// Walks a Mach-O header's load commands without trusting malformed sizes.
 bool RorkHookForEachLoadCommand(const RorkHookMachHeader *header,
                                 RorkHookLoadCommandVisitor visitor,
                                 void *context) {
@@ -47,6 +48,7 @@ typedef struct {
     bool found;
 } RorkHookImageSlideContext;
 
+/// Visitor that records the segment mapping the Mach-O header.
 static bool RorkHookImageSlideLoadCommand(const struct load_command *command,
                                           uint32_t index,
                                           void *contextRaw) {
@@ -69,6 +71,7 @@ static bool RorkHookImageSlideLoadCommand(const struct load_command *command,
     return true;
 }
 
+/// Resolves the VM slide for both executables and dylibs.
 intptr_t RorkHookImageSlide(const RorkHookMachHeader *header, bool *resolved) {
     if (resolved) {
         *resolved = false;
@@ -93,6 +96,7 @@ intptr_t RorkHookImageSlide(const RorkHookMachHeader *header, bool *resolved) {
     return 0;
 }
 
+/// Queries the VM region containing `address` and optionally returns its bounds.
 static bool RorkHookQueryRegion(const void *address,
                                 vm_address_t *regionAddressOut,
                                 vm_size_t *regionSizeOut,
@@ -132,6 +136,7 @@ static bool RorkHookQueryRegion(const void *address,
     return true;
 }
 
+/// Verifies that a byte range is fully contained in one readable VM region.
 bool RorkHookMemoryIsReadable(const void *address, size_t length) {
     if (address == NULL || length == 0) {
         return false;
@@ -152,6 +157,7 @@ bool RorkHookMemoryIsReadable(const void *address, size_t length) {
     return end >= start && start >= regionStart && end <= regionEnd;
 }
 
+/// Re-signs executable addresses for direct calls on pointer-authenticated targets.
 void *RorkHookSignPointerIfExecutable(void *pointer) {
     if (pointer == NULL) {
         return NULL;
@@ -167,6 +173,7 @@ void *RorkHookSignPointerIfExecutable(void *pointer) {
     return pointer;
 }
 
+/// Reads dyld's published shared-cache slide from the current task metadata.
 uintptr_t RorkHookSharedCacheSlide(void) {
     task_dyld_info_data_t dyldInfo;
     mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
