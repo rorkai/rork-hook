@@ -4,10 +4,7 @@
 #include "RorkHookMemory.h"
 
 #include <dlfcn.h>
-#include <libkern/OSCacheControl.h>
 #include <mach-o/dyld.h>
-#include <mach/mach.h>
-#include <mach/vm_page_size.h>
 #include <os/lock.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,60 +27,12 @@ static void *RorkHookStripPointer(void *pointer) {
 }
 
 /// Writes `value` into a symbol-pointer slot that may live in read-only and/or
-/// TPRO-hardened memory, restoring the original protection afterwards. Mirrors
-/// the protection dance proven out in the Rork guest runtime.
+/// TPRO-hardened memory, restoring the original protection afterwards.
 static bool RorkHookStoreSlot(void **slot, void *value) {
-    vm_address_t page = (vm_address_t)((uintptr_t)slot & ~(uintptr_t)(vm_page_size - 1));
-
-    // Remember the current protection so a const segment can be sealed again.
-    vm_prot_t originalProtection = VM_PROT_READ;
-    vm_address_t regionAddress = page;
-    vm_size_t regionSize = 0;
-    vm_region_basic_info_data_64_t info;
-    mach_msg_type_number_t count = VM_REGION_BASIC_INFO_COUNT_64;
-    mach_port_t objectName = MACH_PORT_NULL;
-    kern_return_t regionResult = vm_region_64(mach_task_self(),
-                                              &regionAddress,
-                                              &regionSize,
-                                              VM_REGION_BASIC_INFO_64,
-                                              (vm_region_info_t)&info,
-                                              &count,
-                                              &objectName);
-    if (regionResult == KERN_SUCCESS) {
-        originalProtection = info.protection;
+    if (RorkHookStoreProtectedPointer(slot, value, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY)) {
+        return true;
     }
-    if (objectName != MACH_PORT_NULL) {
-        mach_port_deallocate(mach_task_self(), objectName);
-    }
-
-    kern_return_t result = RorkHookProtectMemory(page, vm_page_size, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
-    if (result != KERN_SUCCESS) {
-        result = RorkHookProtectMemory(page, vm_page_size, VM_PROT_READ | VM_PROT_WRITE);
-        if (result != KERN_SUCCESS) {
-            // The pages refused a protection change: on arm64e this is the
-            // TPRO-hardened case, writable only inside a thread write window.
-            if (!RorkHookSupportsTPRO()) {
-                return false;
-            }
-            bool opened = false;
-            if (!RorkHookThreadCanWriteTPRO()) {
-                RorkHookBeginThreadTPROWrite();
-                opened = true;
-            }
-            *slot = value;
-            sys_dcache_flush(slot, sizeof(void *));
-            if (opened) {
-                RorkHookEndThreadTPROWrite();
-            }
-            return true;
-        }
-    }
-
-    *slot = value;
-    sys_dcache_flush(slot, sizeof(void *));
-    kern_return_t restore =
-        RorkHookProtectMemory(page, vm_page_size, originalProtection ? originalProtection : VM_PROT_READ);
-    return restore == KERN_SUCCESS;
+    return RorkHookStoreProtectedPointer(slot, value, VM_PROT_READ | VM_PROT_WRITE);
 }
 
 /// Rewrites every slot in one symbol-pointer section that currently resolves to
