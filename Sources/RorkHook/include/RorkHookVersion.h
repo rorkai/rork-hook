@@ -16,10 +16,10 @@ RORK_HOOK_ASSUME_NONNULL_BEGIN
 #define RORK_HOOK_VERSION_MINOR 1
 
 /// Patch version for the compiled RorkHook package.
-#define RORK_HOOK_VERSION_PATCH 0
+#define RORK_HOOK_VERSION_PATCH 1
 
 /// Human-readable semantic version for the compiled RorkHook package.
-#define RORK_HOOK_VERSION_STRING "0.1.0"
+#define RORK_HOOK_VERSION_STRING "0.1.1"
 
 /// Version of the exported C ABI. This changes only when the ABI contract
 /// itself changes, not for every package release.
