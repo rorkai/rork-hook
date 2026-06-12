@@ -36,27 +36,38 @@ static bool RorkHookStoreSlot(void **slot, void *value) {
     return RorkHookStoreProtectedPointer(slot, value, VM_PROT_READ | VM_PROT_WRITE);
 }
 
+/// State threaded through one image's section scan: the image being rebound,
+/// the raw replacee to match, and the replacement to install.
+typedef struct {
+    const RorkHookMachHeader *header;
+    void *replaceeRaw;
+    void *replacement;
+} RorkHookRebindImageContext;
+
+/// Reads a 16-byte Mach-O segment/section name into a NUL-terminated buffer.
+static void RorkHookCopyName(char out[17], const char name[16]) {
+    memcpy(out, name, 16);
+    out[16] = '\0';
+}
+
 /// Rewrites every slot in one symbol-pointer section that currently resolves to
-/// `replaceeRaw` so it points at `replacement`, re-signing authenticated slots.
-static void RorkHookRebindSection(const RorkHookMachHeader *header,
-                                  const RorkHookSection *section,
-                                  void *replaceeRaw,
-                                  void *replacement) {
+/// the context's replacee so it points at the replacement, re-signing
+/// authenticated slots.
+static void RorkHookRebindSection(const RorkHookRebindImageContext *context,
+                                  const RorkHookSection *section) {
     // Resolve the section's mapped address with getsectiondata rather than
     // `section->addr + slide`. In the dyld shared cache, __TEXT and the data
     // segments are split into separate regions with different offsets, so the
     // __TEXT slide does not apply to a data section's link-time address and the
     // computed pointer lands in an unmapped cache hole. getsectiondata resolves
     // the real runtime address (and size) for both cache and on-disk images.
-    char segname[sizeof(section->segname) + 1];
-    char sectname[sizeof(section->sectname) + 1];
-    memcpy(segname, section->segname, sizeof(section->segname));
-    segname[sizeof(section->segname)] = '\0';
-    memcpy(sectname, section->sectname, sizeof(section->sectname));
-    sectname[sizeof(section->sectname)] = '\0';
+    char segname[17];
+    char sectname[17];
+    RorkHookCopyName(segname, section->segname);
+    RorkHookCopyName(sectname, section->sectname);
 
     unsigned long sectionSize = 0;
-    void **slots = (void **)getsectiondata((const struct mach_header_64 *)header,
+    void **slots = (void **)getsectiondata((const struct mach_header_64 *)context->header,
                                            segname,
                                            sectname,
                                            &sectionSize);
@@ -66,7 +77,7 @@ static void RorkHookRebindSection(const RorkHookMachHeader *header,
     }
 
 #if __has_feature(ptrauth_calls)
-    bool authenticated = strncmp(section->sectname, "__auth_got", sizeof(section->sectname)) == 0;
+    bool authenticated = strcmp(sectname, "__auth_got") == 0;
 #endif
 
     for (size_t index = 0; index < slotCount; index += 1) {
@@ -83,11 +94,11 @@ static void RorkHookRebindSection(const RorkHookMachHeader *header,
                 ptrauth_key_function_pointer);
         }
 #endif
-        if (resolved != replaceeRaw) {
+        if (resolved != context->replaceeRaw) {
             continue;
         }
 
-        void *finalValue = replacement;
+        void *finalValue = context->replacement;
 #if __has_feature(ptrauth_calls)
         if (authenticated) {
             // __auth_got function-pointer slots are signed with the IB
@@ -95,21 +106,15 @@ static void RorkHookRebindSection(const RorkHookMachHeader *header,
             // Re-sign the replacement with that key so the call site, which
             // authenticates with IB, accepts it; signing with IA would fail
             // authentication at the call and crash.
-            finalValue = ptrauth_auth_and_resign(replacement, ptrauth_key_function_pointer, 0,
+            finalValue = ptrauth_auth_and_resign(context->replacement, ptrauth_key_function_pointer, 0,
                                                  ptrauth_key_process_independent_code, &slots[index]);
         } else {
-            finalValue = ptrauth_strip(replacement, ptrauth_key_function_pointer);
+            finalValue = ptrauth_strip(context->replacement, ptrauth_key_function_pointer);
         }
 #endif
         RorkHookStoreSlot(&slots[index], finalValue);
     }
 }
-
-typedef struct {
-    const RorkHookMachHeader *header;
-    void *replaceeRaw;
-    void *replacement;
-} RorkHookRebindImageContext;
 
 /// Visitor that scans writable pointer sections in one Mach-O image.
 static bool RorkHookRebindImageLoadCommand(const struct load_command *command,
@@ -141,10 +146,7 @@ static bool RorkHookRebindImageLoadCommand(const struct load_command *command,
     for (uint32_t sectionIndex = 0; sectionIndex < segment->nsects; sectionIndex += 1) {
         uint32_t type = sections[sectionIndex].flags & SECTION_TYPE;
         if (type == S_LAZY_SYMBOL_POINTERS || type == S_NON_LAZY_SYMBOL_POINTERS) {
-            RorkHookRebindSection(context->header,
-                                  &sections[sectionIndex],
-                                  context->replaceeRaw,
-                                  context->replacement);
+            RorkHookRebindSection(context, &sections[sectionIndex]);
         }
     }
     return true;
