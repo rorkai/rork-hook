@@ -9,7 +9,7 @@ final class RorkHookEnvironmentTests: XCTestCase {
 
     /// Verifies the package and ABI version probes.
     func testVersionReportsPackageAndABI() {
-        XCTAssertEqual(String(cString: RorkHookVersion()), "0.1.0")
+        XCTAssertEqual(String(cString: RorkHookVersion()), "0.1.1")
         XCTAssertEqual(RorkHookABIVersion(), 1)
     }
 
