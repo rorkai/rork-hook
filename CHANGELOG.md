@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3 - 2026-06-12
+
+- Re-sign rewritten `__auth_got` slots with the IB (process-independent code)
+  key instead of IA, matching the arm64e authenticated-GOT ABI and the
+  reference litehook implementation. Signing with IA produced a pointer the
+  call site could not authenticate, crashing when the rebound symbol was first
+  called. Also restores the `ptrauth_auth_function` slot read (reverting the
+  0.1.2 strip change), matching litehook.
+
 ## 0.1.2 - 2026-06-12
 
 - Fix SIGBUS during global symbol rebinding on FPAC-capable arm64e devices
