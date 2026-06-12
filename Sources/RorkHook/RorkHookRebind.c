@@ -60,14 +60,9 @@ static void RorkHookRebindSection(const RorkHookSection *section,
         void *resolved = current;
 #if __has_feature(ptrauth_calls)
         if (authenticated) {
-            // Strip the signature instead of authenticating it. Authenticating
-            // (ptrauth_auth_function) faults on FPAC-capable arm64e (A17/A18 and
-            // later) whenever a slot is signed under a scheme other than the
-            // assumed IA + address diversity — which is common across the many
-            // foreign __auth_got slots this rebind walks. Stripping yields the
-            // same raw address for the comparison below and never faults; a
-            // matching slot is still re-signed correctly when it is rewritten.
-            resolved = ptrauth_strip(current, ptrauth_key_function_pointer);
+            resolved = ptrauth_strip(
+                ptrauth_auth_function(current, ptrauth_key_function_pointer, &slots[index]),
+                ptrauth_key_function_pointer);
         }
 #endif
         if (resolved != replaceeRaw) {
@@ -77,10 +72,13 @@ static void RorkHookRebindSection(const RorkHookSection *section,
         void *finalValue = replacement;
 #if __has_feature(ptrauth_calls)
         if (authenticated) {
-            // The slot expects an IA-signed pointer discriminated by its own
-            // address; re-sign the plain replacement to match.
+            // __auth_got function-pointer slots are signed with the IB
+            // (process-independent code) key, diversified by the slot address.
+            // Re-sign the replacement with that key so the call site, which
+            // authenticates with IB, accepts it; signing with IA would fail
+            // authentication at the call and crash.
             finalValue = ptrauth_auth_and_resign(replacement, ptrauth_key_function_pointer, 0,
-                                                 ptrauth_key_function_pointer, &slots[index]);
+                                                 ptrauth_key_process_independent_code, &slots[index]);
         } else {
             finalValue = ptrauth_strip(replacement, ptrauth_key_function_pointer);
         }
