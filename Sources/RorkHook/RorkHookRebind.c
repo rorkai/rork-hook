@@ -60,9 +60,14 @@ static void RorkHookRebindSection(const RorkHookSection *section,
         void *resolved = current;
 #if __has_feature(ptrauth_calls)
         if (authenticated) {
-            resolved = ptrauth_strip(
-                ptrauth_auth_function(current, ptrauth_key_function_pointer, &slots[index]),
-                ptrauth_key_function_pointer);
+            // Strip the signature instead of authenticating it. Authenticating
+            // (ptrauth_auth_function) faults on FPAC-capable arm64e (A17/A18 and
+            // later) whenever a slot is signed under a scheme other than the
+            // assumed IA + address diversity — which is common across the many
+            // foreign __auth_got slots this rebind walks. Stripping yields the
+            // same raw address for the comparison below and never faults; a
+            // matching slot is still re-signed correctly when it is rewritten.
+            resolved = ptrauth_strip(current, ptrauth_key_function_pointer);
         }
 #endif
         if (resolved != replaceeRaw) {
