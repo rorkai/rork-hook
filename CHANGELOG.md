@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2 - 2026-06-12
+
+- Fix SIGBUS during global symbol rebinding on FPAC-capable arm64e devices
+  (A17/A18 and later). `RorkHookRebindSection` authenticated every `__auth_got`
+  slot with `ptrauth_auth_function`, which faults under FPAC when a foreign slot
+  is signed under a scheme other than IA + address diversity. Strip the
+  signature for the slot comparison instead; matching slots are still re-signed
+  correctly when rewritten.
+
 ## 0.1.1 - 2026-06-12
 
 - Fix intermittent SIGBUS in `RorkHookStoreProtectedPointer` on arm64e devices.
