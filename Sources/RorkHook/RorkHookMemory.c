@@ -158,8 +158,16 @@ bool RorkHookStoreProtectedPointer(void *slot,
     kern_return_t result = RorkHookProtectMemory(firstPage,
                                                  protectSize,
                                                  protection);
+
+    // On arm64e, __DATA_CONST/__AUTH_CONST in the shared cache is TPRO-hardened:
+    // vm_protect can report success while the hardware still faults the store
+    // unless the calling thread's TPRO write window is open. Open it around the
+    // write whenever the device supports TPRO, regardless of the vm_protect
+    // result; it is a no-op on pages that are not TPRO-gated. With no TPRO
+    // support and a failed vm_protect, the page cannot be made writable.
     void (*restoreReadOnly)(void) = NULL;
-    if (result != KERN_SUCCESS && !RorkHookAllowTPROWrites(&restoreReadOnly)) {
+    bool tproWindowOpened = RorkHookAllowTPROWrites(&restoreReadOnly);
+    if (result != KERN_SUCCESS && !tproWindowOpened) {
         return false;
     }
 
@@ -168,6 +176,11 @@ bool RorkHookStoreProtectedPointer(void *slot,
 
     if (restoreReadOnly) {
         restoreReadOnly();
+    }
+
+    if (result != KERN_SUCCESS) {
+        // vm_protect left the page protection unchanged, so there is nothing to
+        // put back; the write went through the TPRO window.
         return true;
     }
 

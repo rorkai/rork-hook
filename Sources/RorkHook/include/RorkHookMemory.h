@@ -41,10 +41,11 @@ kern_return_t RorkHookMakeMemoryExecutable(vm_address_t address, vm_size_t size)
 /// in read-only memory such as `__DATA_CONST` or `__AUTH_CONST`.
 ///
 /// The function temporarily applies `protection` to the page or pages covering
-/// the slot and restores the previous VM protection after the write. If the
-/// protection change fails on a TPRO-hardened arm64e device, it opens the
-/// current thread's TPRO write window, performs the pointer write, flushes the
-/// data cache for the slot, and closes the write window again. `slot` must
+/// the slot and restores the previous VM protection after the write. On a
+/// TPRO-hardened arm64e device it also opens the calling thread's TPRO write
+/// window around the write, because `vm_protect` can report success while the
+/// hardware still faults the store; the window is closed again afterwards. The
+/// pointer write is followed by a data-cache flush for the slot. `slot` must
 /// address pointer storage; `value` may be `NULL`.
 bool RorkHookStoreProtectedPointer(void *slot,
                                    const void *RORK_HOOK_NULLABLE value,
