@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.4 - 2026-06-13
+
+- Resolve symbol-pointer section addresses with `getsectiondata` instead of
+  `section->addr + __TEXT slide`. In the dyld shared cache, `__TEXT` and the
+  data segments are split into separate regions with different offsets, so the
+  `__TEXT` slide does not apply to a data section's link-time address and the
+  computed pointer landed in an unmapped cache hole — faulting (SIGBUS /
+  KERN_PROTECTION_FAILURE) while rebinding shared-cache images. `getsectiondata`
+  returns the correct mapped address and size for both cache and on-disk images.
+
 ## 0.1.3 - 2026-06-12
 
 - Re-sign rewritten `__auth_got` slots with the IB (process-independent code)

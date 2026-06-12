@@ -5,6 +5,7 @@
 
 #include <dlfcn.h>
 #include <mach-o/dyld.h>
+#include <mach-o/getsect.h>
 #include <os/lock.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,13 +38,30 @@ static bool RorkHookStoreSlot(void **slot, void *value) {
 
 /// Rewrites every slot in one symbol-pointer section that currently resolves to
 /// `replaceeRaw` so it points at `replacement`, re-signing authenticated slots.
-static void RorkHookRebindSection(const RorkHookSection *section,
-                                  intptr_t slide,
+static void RorkHookRebindSection(const RorkHookMachHeader *header,
+                                  const RorkHookSection *section,
                                   void *replaceeRaw,
                                   void *replacement) {
-    void **slots = (void **)((uintptr_t)section->addr + (uintptr_t)slide);
-    size_t slotCount = (size_t)section->size / sizeof(void *);
-    if (slotCount == 0 || !RorkHookMemoryIsReadable(slots, (size_t)section->size)) {
+    // Resolve the section's mapped address with getsectiondata rather than
+    // `section->addr + slide`. In the dyld shared cache, __TEXT and the data
+    // segments are split into separate regions with different offsets, so the
+    // __TEXT slide does not apply to a data section's link-time address and the
+    // computed pointer lands in an unmapped cache hole. getsectiondata resolves
+    // the real runtime address (and size) for both cache and on-disk images.
+    char segname[sizeof(section->segname) + 1];
+    char sectname[sizeof(section->sectname) + 1];
+    memcpy(segname, section->segname, sizeof(section->segname));
+    segname[sizeof(section->segname)] = '\0';
+    memcpy(sectname, section->sectname, sizeof(section->sectname));
+    sectname[sizeof(section->sectname)] = '\0';
+
+    unsigned long sectionSize = 0;
+    void **slots = (void **)getsectiondata((const struct mach_header_64 *)header,
+                                           segname,
+                                           sectname,
+                                           &sectionSize);
+    size_t slotCount = (size_t)sectionSize / sizeof(void *);
+    if (slots == NULL || slotCount == 0 || !RorkHookMemoryIsReadable(slots, (size_t)sectionSize)) {
         return;
     }
 
@@ -88,7 +106,7 @@ static void RorkHookRebindSection(const RorkHookSection *section,
 }
 
 typedef struct {
-    intptr_t slide;
+    const RorkHookMachHeader *header;
     void *replaceeRaw;
     void *replacement;
 } RorkHookRebindImageContext;
@@ -123,8 +141,8 @@ static bool RorkHookRebindImageLoadCommand(const struct load_command *command,
     for (uint32_t sectionIndex = 0; sectionIndex < segment->nsects; sectionIndex += 1) {
         uint32_t type = sections[sectionIndex].flags & SECTION_TYPE;
         if (type == S_LAZY_SYMBOL_POINTERS || type == S_NON_LAZY_SYMBOL_POINTERS) {
-            RorkHookRebindSection(&sections[sectionIndex],
-                                  context->slide,
+            RorkHookRebindSection(context->header,
+                                  &sections[sectionIndex],
                                   context->replaceeRaw,
                                   context->replacement);
         }
@@ -140,10 +158,9 @@ void RorkHookRebindSymbolInImage(const RorkHookMachHeader *header,
         return;
     }
 
-    intptr_t slide = RorkHookImageSlide(header, NULL);
     void *replaceeRaw = RorkHookStripPointer(replacee);
     RorkHookRebindImageContext context = {
-        .slide = slide,
+        .header = header,
         .replaceeRaw = replaceeRaw,
         .replacement = replacement,
     };
