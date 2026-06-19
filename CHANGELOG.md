@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 - 2026-06-19
+
+- Require a Swift 6.0 or newer toolchain and compile the package's Swift
+  targets in Swift 6 language mode without changing the exported C ABI,
+  supported platforms, or deployment targets.
+- Keep the downstream smoke client in Swift 5 language mode to verify that
+  existing Swift consumers can continue importing the C module.
+- Query the host VM page size through `getpagesize()` in memory tests instead
+  of reading Darwin's mutable `vm_page_size` global.
+
 ## 0.1.4 - 2026-06-13
 
 - Resolve symbol-pointer section addresses with `getsectiondata` instead of
