@@ -1,3 +1,4 @@
+import Darwin
 import RorkHook
 import XCTest
 
@@ -39,10 +40,19 @@ final class RorkHookMemoryTests: XCTestCase {
         }
     }
 
+    /// Returns the host VM page size through Darwin's function-based API.
+    ///
+    /// Swift 6 treats the imported `vm_page_size` symbol as shared mutable
+    /// state, so the tests query the same process-level value without reading
+    /// that global directly.
+    private func hostPageSize() -> vm_size_t {
+        vm_size_t(getpagesize())
+    }
+
     /// Verifies pointer writes into a read-only page and protection restoration.
     func testProtectedPointerWriteMutatesReadOnlyPageAndRestoresProtection() throws {
         var address: vm_address_t = 0
-        let size = vm_size_t(vm_page_size)
+        let size = hostPageSize()
         XCTAssertEqual(vm_allocate(mach_task_self_, &address, size, VM_FLAGS_ANYWHERE), KERN_SUCCESS)
         defer {
             vm_deallocate(mach_task_self_, address, size)
@@ -75,20 +85,21 @@ final class RorkHookMemoryTests: XCTestCase {
     /// Verifies pointer writes whose storage crosses two protected pages.
     func testProtectedPointerWriteAcrossPageBoundaryRestoresBothPages() throws {
         var address: vm_address_t = 0
-        let size = vm_size_t(vm_page_size * 2)
+        let pageSize = hostPageSize()
+        let size = pageSize * 2
         XCTAssertEqual(vm_allocate(mach_task_self_, &address, size, VM_FLAGS_ANYWHERE), KERN_SUCCESS)
         defer {
             vm_deallocate(mach_task_self_, address, size)
         }
 
         let pointerSize = MemoryLayout<UnsafeRawPointer>.size
-        let slotAddress = address + vm_address_t(vm_page_size) - vm_address_t(pointerSize / 2)
+        let slotAddress = address + vm_address_t(pageSize) - vm_address_t(pointerSize / 2)
         let slot = try XCTUnwrap(UnsafeMutableRawPointer(bitPattern: UInt(slotAddress)))
         slot.initializeMemory(as: UInt8.self, repeating: 0, count: pointerSize)
 
         XCTAssertEqual(RorkHookProtectMemory(address, size, VM_PROT_READ), KERN_SUCCESS)
         XCTAssertEqual(try protection(for: address) & VM_PROT_WRITE, 0)
-        XCTAssertEqual(try protection(for: address + vm_address_t(vm_page_size)) & VM_PROT_WRITE, 0)
+        XCTAssertEqual(try protection(for: address + vm_address_t(pageSize)) & VM_PROT_WRITE, 0)
 
         var value = 27182
         let valuePointer = withUnsafePointer(to: &value) { pointer in
@@ -109,6 +120,6 @@ final class RorkHookMemoryTests: XCTestCase {
         ).map { $0 }
         XCTAssertEqual(actualBytes, pointerBytes(valuePointer))
         XCTAssertEqual(try protection(for: address) & VM_PROT_WRITE, 0)
-        XCTAssertEqual(try protection(for: address + vm_address_t(vm_page_size)) & VM_PROT_WRITE, 0)
+        XCTAssertEqual(try protection(for: address + vm_address_t(pageSize)) & VM_PROT_WRITE, 0)
     }
 }
