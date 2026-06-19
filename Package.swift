@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 
 import PackageDescription
 
@@ -47,6 +47,7 @@ let package = Package(
             path: "Tests/RorkHookTests"
         ),
     ],
+    swiftLanguageModes: [.v6],
     cLanguageStandard: .gnu11,
     cxxLanguageStandard: .gnucxx17
 )

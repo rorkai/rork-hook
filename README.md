@@ -1,6 +1,6 @@
 # Rork Hook
 
-[![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](Package.swift)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](Package.swift)
 [![SwiftPM](https://img.shields.io/badge/SwiftPM-supported-brightgreen.svg)](Package.swift)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 

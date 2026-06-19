@@ -43,7 +43,8 @@ let package = Package(
                 .product(name: "RorkHook", package: "$PACKAGE_ID"),
             ]
         ),
-    ]
+    ],
+    swiftLanguageVersions: [.v5]
 )
 SWIFT
 
