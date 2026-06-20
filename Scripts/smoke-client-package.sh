@@ -6,9 +6,9 @@ PACKAGE_ID="$(basename "$ROOT_DIR")"
 PACKAGE_ID="${PACKAGE_ID%.git}"
 PACKAGE_ID="$(printf '%s' "$PACKAGE_ID" | tr '[:upper:]' '[:lower:]')"
 SMOKE_DIR="${TMPDIR:-/tmp}/rork-hook-client-smoke"
-IOS_DERIVED_DATA="${TMPDIR:-/tmp}/rork-hook-client-smoke-ios-dd"
+IOS_SCRATCH_PATH="${TMPDIR:-/tmp}/rork-hook-client-smoke-ios"
 
-rm -rf "$SMOKE_DIR" "$IOS_DERIVED_DATA"
+rm -rf "$SMOKE_DIR" "$IOS_SCRATCH_PATH"
 mkdir -p "$SMOKE_DIR/Sources/ObjCSmoke/include" "$SMOKE_DIR/Sources/ClientSmoke"
 
 cat > "$SMOKE_DIR/Package.swift" <<SWIFT
@@ -94,14 +94,9 @@ SWIFT
 
 swift build --package-path "$SMOKE_DIR"
 
-if command -v xcodebuild >/dev/null 2>&1; then
-    (
-        cd "$SMOKE_DIR"
-        xcodebuild \
-            -quiet \
-            -scheme ClientSmoke \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath "$IOS_DERIVED_DATA" \
-            build
-    )
-fi
+IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+swift build \
+    --package-path "$SMOKE_DIR" \
+    --scratch-path "$IOS_SCRATCH_PATH" \
+    --triple arm64-apple-ios15.0 \
+    --sdk "$IOS_SDK"

@@ -1,0 +1,447 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		9C35BF0BECAF4573053569AA /* RorkHook in Frameworks */ = {isa = PBXBuildFile; productRef = C8A0FEC398A301FBE9AEBFB1 /* RorkHook */; };
+		AB5FE758095A2E368389A32A /* RorkHookDeviceHostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B225A0069E00CE2FB4DAF9F /* RorkHookDeviceHostApp.swift */; };
+		B500A754317AE7F04C85CE8A /* RorkHookDeviceTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 28EE4D299466E5530E266751 /* RorkHookDeviceTests.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F95FF9D0787B117D84219884 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B34823F138C103912D003656 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2112A686D8D7A59C8C54F51A;
+			remoteInfo = RorkHookDeviceHost;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		28EE4D299466E5530E266751 /* RorkHookDeviceTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RorkHookDeviceTests.m; sourceTree = "<group>"; };
+		5ABDF5462D1C850DCE53F6A6 /* rork-hook */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "rork-hook"; path = ..; sourceTree = SOURCE_ROOT; };
+		799652A5012E8D273190718B /* RorkHookDeviceTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RorkHookDeviceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7BFF9183C5F9CF22DACB424A /* RorkHookDeviceHost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = RorkHookDeviceHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8B225A0069E00CE2FB4DAF9F /* RorkHookDeviceHostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RorkHookDeviceHostApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		247817C4D8BA96EACA6ED068 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9C35BF0BECAF4573053569AA /* RorkHook in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3343632749286DAC8DA8B40B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7BFF9183C5F9CF22DACB424A /* RorkHookDeviceHost.app */,
+				799652A5012E8D273190718B /* RorkHookDeviceTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		34B579D29222C58F5EC99106 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				28EE4D299466E5530E266751 /* RorkHookDeviceTests.m */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		B57064A3E5EF1EE66899F928 = {
+			isa = PBXGroup;
+			children = (
+				B5AE2C7D4266CE0FBC086953 /* Host */,
+				FD091B142F99586DAEAE0CEC /* Packages */,
+				34B579D29222C58F5EC99106 /* Tests */,
+				3343632749286DAC8DA8B40B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B5AE2C7D4266CE0FBC086953 /* Host */ = {
+			isa = PBXGroup;
+			children = (
+				8B225A0069E00CE2FB4DAF9F /* RorkHookDeviceHostApp.swift */,
+			);
+			path = Host;
+			sourceTree = "<group>";
+		};
+		FD091B142F99586DAEAE0CEC /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				5ABDF5462D1C850DCE53F6A6 /* rork-hook */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2112A686D8D7A59C8C54F51A /* RorkHookDeviceHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 49EEF229119EDD7362EC8232 /* Build configuration list for PBXNativeTarget "RorkHookDeviceHost" */;
+			buildPhases = (
+				B6838F97ACBF0D33F1D66A6B /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RorkHookDeviceHost;
+			packageProductDependencies = (
+			);
+			productName = RorkHookDeviceHost;
+			productReference = 7BFF9183C5F9CF22DACB424A /* RorkHookDeviceHost.app */;
+			productType = "com.apple.product-type.application";
+		};
+		37C2723F73BABB38B4A52631 /* RorkHookDeviceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 305997ED2931251F5696E8D0 /* Build configuration list for PBXNativeTarget "RorkHookDeviceTests" */;
+			buildPhases = (
+				62897CFCBCF9F9C976D4512A /* Sources */,
+				247817C4D8BA96EACA6ED068 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				178C382D32D7F8A5F1D99ADB /* PBXTargetDependency */,
+			);
+			name = RorkHookDeviceTests;
+			packageProductDependencies = (
+				C8A0FEC398A301FBE9AEBFB1 /* RorkHook */,
+			);
+			productName = RorkHookDeviceTests;
+			productReference = 799652A5012E8D273190718B /* RorkHookDeviceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B34823F138C103912D003656 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					2112A686D8D7A59C8C54F51A = {
+						ProvisioningStyle = Automatic;
+					};
+					37C2723F73BABB38B4A52631 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = D38676142D4BE82A944B48AD /* Build configuration list for PBXProject "RorkHookDeviceTests" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = B57064A3E5EF1EE66899F928;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3EEFAA12C07B8BEAC271E5D9 /* XCLocalSwiftPackageReference ".." */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				2112A686D8D7A59C8C54F51A /* RorkHookDeviceHost */,
+				37C2723F73BABB38B4A52631 /* RorkHookDeviceTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		62897CFCBCF9F9C976D4512A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B500A754317AE7F04C85CE8A /* RorkHookDeviceTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B6838F97ACBF0D33F1D66A6B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB5FE758095A2E368389A32A /* RorkHookDeviceHostApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		178C382D32D7F8A5F1D99ADB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2112A686D8D7A59C8C54F51A /* RorkHookDeviceHost */;
+			targetProxy = F95FF9D0787B117D84219884 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		316AD5972BBE1C9969000914 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-fno-builtin-getpid",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RORK_HOOK_DEVICE_BUNDLE_ID_PREFIX).tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RorkHookDeviceHost.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RorkHookDeviceHost";
+			};
+			name = Debug;
+		};
+		5645333264B01E2980AB1571 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RORK_HOOK_DEVICE_BUNDLE_ID_PREFIX).host";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		6F36398CBAA2A8FA06154A89 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64e;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				RORK_HOOK_DEVICE_BUNDLE_ID_PREFIX = "dev.rorkhook.device-tests";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A2A980DE80DE3BD3A835B94E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-fno-builtin-getpid",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RORK_HOOK_DEVICE_BUNDLE_ID_PREFIX).tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RorkHookDeviceHost.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RorkHookDeviceHost";
+			};
+			name = Release;
+		};
+		D90068C1D50FB0F7CC343840 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RORK_HOOK_DEVICE_BUNDLE_ID_PREFIX).host";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		E04992F4FA15419DA3F2A322 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64e;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				RORK_HOOK_DEVICE_BUNDLE_ID_PREFIX = "dev.rorkhook.device-tests";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		305997ED2931251F5696E8D0 /* Build configuration list for PBXNativeTarget "RorkHookDeviceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				316AD5972BBE1C9969000914 /* Debug */,
+				A2A980DE80DE3BD3A835B94E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		49EEF229119EDD7362EC8232 /* Build configuration list for PBXNativeTarget "RorkHookDeviceHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5645333264B01E2980AB1571 /* Debug */,
+				D90068C1D50FB0F7CC343840 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D38676142D4BE82A944B48AD /* Build configuration list for PBXProject "RorkHookDeviceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6F36398CBAA2A8FA06154A89 /* Debug */,
+				E04992F4FA15419DA3F2A322 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		3EEFAA12C07B8BEAC271E5D9 /* XCLocalSwiftPackageReference ".." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C8A0FEC398A301FBE9AEBFB1 /* RorkHook */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RorkHook;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = B34823F138C103912D003656 /* Project object */;
+}

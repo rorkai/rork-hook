@@ -1,12 +1,11 @@
 import XCTest
 import RorkHook
+import RorkHookTestSupport
 
-/// Tests for the pure, host-runnable parts of RorkHook. The detour and memory
-/// primitives mutate live process state on device, so the suite focuses on the
-/// deterministic ARM64 jump encoder and on smoke-testing the query helpers.
+/// Tests function-hook encoding, validation, and live detour behavior.
 final class RorkHookFunctionTests: XCTestCase {
 
-    /// Reconstructs the 64-bit immediate materialised by the four `MOVK x16`
+    /// Reconstructs the 64-bit immediate materialized by the four `MOVK x16`
     /// words so the encoding can be verified without hard-coded golden bytes.
     private func decodeAbsoluteJumpTarget(_ words: [UInt32]) -> UInt64 {
         var target: UInt64 = 0
@@ -51,4 +50,30 @@ final class RorkHookFunctionTests: XCTestCase {
         XCTAssertEqual(written, 0, "a buffer smaller than the jump sequence must be refused")
     }
 
+    /// Verifies that callers can provide the known patchable prologue length and
+    /// receive a deterministic rejection before any instruction is overwritten.
+    func testCheckedDetourRejectsShortPatchRegion() {
+        XCTAssertTrue(RorkHookTestSupportCheckedDetourRejectsShortRegion())
+    }
+
+    /// Verifies the checked detour path by patching and invoking a dedicated
+    /// function inside a disposable child process.
+    func testCheckedDetourRedirectsDedicatedTarget() {
+        XCTAssertTrue(RorkHookTestSupportCheckedDetourRedirectsTarget())
+    }
+
+    /// Verifies checked detours require instruction-aligned targets.
+    func testCheckedDetourRejectsUnalignedTarget() {
+        XCTAssertTrue(RorkHookTestSupportCheckedDetourRejectsUnalignedTarget())
+    }
+
+    /// Verifies the emitted jump cannot straddle a VM page boundary.
+    func testCheckedDetourRejectsCrossPageTarget() {
+        XCTAssertTrue(RorkHookTestSupportCheckedDetourRejectsCrossPageTarget())
+    }
+
+    /// Verifies checked detours do not patch non-executable storage.
+    func testCheckedDetourRejectsNonExecutableTarget() {
+        XCTAssertTrue(RorkHookTestSupportCheckedDetourRejectsNonExecutableTarget())
+    }
 }

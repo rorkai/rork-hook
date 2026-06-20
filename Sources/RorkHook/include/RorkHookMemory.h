@@ -22,7 +22,9 @@ RORK_HOOK_ASSUME_NONNULL_BEGIN
 /// simulator and other platforms it forwards to `vm_protect`.
 ///
 /// The kernel rounds the range out to enclosing page boundaries, so `address`
-/// and `size` need not be page-aligned.
+/// and `size` need not be page-aligned. Returns `KERN_INVALID_ARGUMENT` when
+/// either value is zero; otherwise returns the result of the underlying Mach
+/// VM operation.
 kern_return_t RorkHookProtectMemory(vm_address_t address,
                                     vm_size_t size,
                                     vm_prot_t protection);
@@ -33,28 +35,37 @@ kern_return_t RorkHookProtectMemory(vm_address_t address,
 /// `VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY`.
 kern_return_t RorkHookMakeMemoryWritable(vm_address_t address, vm_size_t size);
 
-/// Restores the pages covering the range to readable and executable. Equivalent
-/// to `RorkHookProtectMemory` with `VM_PROT_READ | VM_PROT_EXECUTE`.
+/// Marks the pages covering the range readable and executable. Equivalent to
+/// `RorkHookProtectMemory` with `VM_PROT_READ | VM_PROT_EXECUTE`.
 kern_return_t RorkHookMakeMemoryExecutable(vm_address_t address, vm_size_t size);
 
 /// Writes `value` into pointer-sized storage at `slot`, even when `slot` lives
 /// in read-only memory such as `__DATA_CONST` or `__AUTH_CONST`.
 ///
 /// The function temporarily applies `protection` to the page or pages covering
-/// the slot and restores the previous VM protection after the write. On a
-/// TPRO-hardened arm64e device it also opens the calling thread's TPRO write
+/// the slot and restores the previous VM protection after the write. In a
+/// TPRO-hardened arm64e process it also opens the calling thread's TPRO write
 /// window around the write, because `vm_protect` can report success while the
 /// hardware still faults the store; the window is closed again afterwards. The
 /// pointer write is followed by a data-cache flush for the slot. `slot` must
-/// address pointer storage; `value` may be `NULL`.
+/// address pointer storage; `value` may be `NULL`. Returns `false` without
+/// changing memory when the slot is unreadable or unmapped, its pointer-sized
+/// range overflows, or `protection` does not include `VM_PROT_WRITE`. A `false`
+/// result can also report that the pointer was written but one of the original
+/// page protections could not be restored; callers that need transactional
+/// recovery must verify the stored value when this rare VM failure occurs.
 bool RorkHookStoreProtectedPointer(void *slot,
                                    const void *RORK_HOOK_NULLABLE value,
                                    vm_prot_t protection);
 
-/// Returns `true` when the current device enforces TPRO (Text Protection
+/// Returns `true` when the current process enforces TPRO (Text Protection
 /// Read-Only) hardening, where some `__DATA_CONST` regions can only be written
-/// from a thread that has opened a TPRO write window. arm64e devices on recent
-/// iOS report `true`; everything else reports `false`.
+/// from a thread that has opened a TPRO write window.
+///
+/// Hardware support alone is insufficient: ordinary applications running on a
+/// TPRO-capable device report `false` unless their process security
+/// configuration enables TPRO. Non-arm64e devices and non-iOS platforms always
+/// report `false`.
 bool RorkHookSupportsTPRO(void);
 
 /// Returns `true` when the calling thread currently has its TPRO write window
@@ -67,7 +78,9 @@ bool RorkHookThreadCanWriteTPRO(void);
 ///
 /// The window is a per-thread CPU state change, not a memory-protection change;
 /// pair it with ``RorkHookMakeMemoryWritable`` when the target is also mapped
-/// read-only.
+/// read-only. Begin/end calls are not reference-counted: do not nest independent
+/// owners, and do not call ``RorkHookEndThreadTPROWrite`` for a window that was
+/// already open before your code began.
 void RorkHookBeginThreadTPROWrite(void);
 
 /// Closes the calling thread's TPRO write window. A no-op when TPRO is

@@ -44,6 +44,10 @@ extern "C" {
 /// Return `true` to apply the rebind to `header`, `false` to skip it. The image
 /// that defines the replacement function is always excluded automatically, so a
 /// filter never has to guard against rebinding the replacement onto itself.
+///
+/// Dyld may invoke the predicate while holding its loader lock. The callback
+/// must therefore remain non-blocking and must not load images, acquire locks
+/// that loader-sensitive code may hold, or call allocation-heavy frameworks.
 typedef bool (*RorkHookImageFilter)(const RorkHookMachHeader *header);
 
 #ifdef __cplusplus

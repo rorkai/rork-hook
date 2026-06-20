@@ -23,7 +23,19 @@ Then verify:
 
 ```bash
 swift test
+Scripts/test-coverage.sh
+Scripts/test-undefined-behavior.sh
+Scripts/test-sanitizers.sh
 Scripts/smoke-client-package.sh
+```
+
+When a release changes TPRO handling, authenticated rebinding, or shared-cache
+lookup, also run the physical-device harness:
+
+```bash
+RORK_HOOK_DEVICE_UDID=<device-udid> \
+DEVELOPMENT_TEAM=<team-id> \
+Scripts/test-device.sh
 ```
 
 ## Publish

@@ -20,5 +20,31 @@ jobs:
       - name: Test package
         run: swift test
 
+      - name: Verify production C coverage
+        run: Scripts/test-coverage.sh
+
+      - name: Test undefined behavior
+        run: Scripts/test-undefined-behavior.sh
+
+      - name: Test memory and concurrency safety
+        run: Scripts/test-sanitizers.sh
+
+      - name: Build with strict C warnings
+        run: swift build --scratch-path /tmp/rork-hook-strict-warnings -Xcc -Wall -Xcc -Wextra -Xcc -Werror
+
+      - name: Build release package
+        run: swift build -c release
+
       - name: Smoke-test client package
         run: Scripts/smoke-client-package.sh
+
+      - name: Build physical-device test harness
+        run: >-
+          xcodebuild build-for-testing
+          -project DeviceTests/RorkHookDeviceTests.xcodeproj
+          -scheme RorkHookDeviceTests
+          -destination 'generic/platform=iOS'
+          -derivedDataPath /tmp/rork-hook-device-tests
+          CODE_SIGNING_ALLOWED=NO
+          ARCHS=arm64e
+          ONLY_ACTIVE_ARCH=YES
