@@ -3,14 +3,11 @@
 
 #include <stdint.h>
 
-/// Minimal, owned subset of the dyld shared cache on-disk layout.
+/// Defines the subset of dyld shared-cache records used by RorkHook.
 ///
-/// These records mirror the public `dyld_cache_format.h` from Apple's dyld
-/// source, trimmed to the fields RorkHook reads when resolving local symbols.
-/// Defining them here keeps the package self-contained instead of vendoring the
-/// full Apple header. Only fields up to `imagesCount` are referenced; the cache
-/// header is far larger on disk, so always read it with its real on-disk size
-/// rather than `sizeof` of this struct when seeking past it.
+/// These declarations contain only the on-disk fields required to locate image
+/// and local-symbol metadata. They are internal to the shared-cache parser and
+/// intentionally omit unrelated parts of the format.
 
 typedef struct {
     char     magic[16];
