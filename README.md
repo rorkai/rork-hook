@@ -32,6 +32,8 @@ let version = String(cString: RorkHookVersion())
 - `Tests/RorkHookTestSupport`: C/Objective-C helpers used by correctness tests.
 - `DeviceTests`: opt-in arm64e iPhone host application and XCTest bundle for
   device-only runtime behavior.
+- `Scripts/generate-device-tests.sh`: generates the device harness from its
+  pinned Tuist manifest.
 - `Scripts/test-coverage.sh`: production-C coverage gate.
 - `Scripts/test-undefined-behavior.sh`: whole-suite UndefinedBehaviorSanitizer
   gate.
@@ -199,9 +201,10 @@ DEVELOPMENT_TEAM=<team-id> \
 Scripts/test-device.sh
 ```
 
-The runner builds an arm64e host application and validates process-level TPRO
-state, live shared-cache lookup, and authenticated import-slot rebinding. See
-`DeviceTests/README.md` for signing and TPRO-enforcement details.
+The runner generates the harness with the Tuist version pinned in `.mise.toml`,
+builds an arm64e host application, and validates process-level TPRO state, live
+shared-cache lookup, and authenticated import-slot rebinding. See
+`DeviceTests/README.md` for setup, signing, and TPRO-enforcement details.
 
 ## Safety
 

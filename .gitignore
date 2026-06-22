@@ -4,5 +4,8 @@
 /DerivedData/
 /Artifacts/
 /Package.resolved
+/DeviceTests/Derived/
+/DeviceTests/*.xcodeproj/
+/DeviceTests/*.xcworkspace/
 *.xcuserdata/
 *.xcuserstate

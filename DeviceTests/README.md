@@ -9,9 +9,19 @@ Simulator cannot reproduce:
 
 The tests run inside a minimal iOS host application because SwiftPM's
 tool-hosted test bundle cannot execute directly on a physical iPhone. The
-checked-in Xcode project references the package at the repository root and
-contains no development team, device identifier, provisioning profile, or
-private entitlement.
+Tuist manifest references the package at the repository root and generates the
+Xcode project on demand. The manifest contains no development team, device
+identifier, provisioning profile, or private entitlement.
+
+Tuist is required only for this opt-in harness. Its version is pinned in the
+repository's `.mise.toml`:
+
+```bash
+mise install
+Scripts/generate-device-tests.sh
+```
+
+The generated Xcode project is intentionally ignored by Git.
 
 Run the harness with a connected, trusted iPhone:
 

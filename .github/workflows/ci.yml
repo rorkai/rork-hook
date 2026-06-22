@@ -38,13 +38,17 @@ jobs:
       - name: Smoke-test client package
         run: Scripts/smoke-client-package.sh
 
+      - name: Install device-test toolchain
+        uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+
       - name: Build physical-device test harness
-        run: >-
-          xcodebuild build-for-testing
-          -project DeviceTests/RorkHookDeviceTests.xcodeproj
-          -scheme RorkHookDeviceTests
-          -destination 'generic/platform=iOS'
-          -derivedDataPath /tmp/rork-hook-device-tests
-          CODE_SIGNING_ALLOWED=NO
-          ARCHS=arm64e
-          ONLY_ACTIVE_ARCH=YES
+        run: |
+          Scripts/generate-device-tests.sh
+          xcodebuild build-for-testing \
+            -project DeviceTests/RorkHookDeviceTests.xcodeproj \
+            -scheme RorkHookDeviceTests \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath /tmp/rork-hook-device-tests \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64e \
+            ONLY_ACTIVE_ARCH=YES

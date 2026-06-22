@@ -32,6 +32,8 @@ result_bundle="$SCRATCH_DIR/Result.xcresult"
 rm -rf "$derived_data" "$result_bundle"
 mkdir -p "$SCRATCH_DIR"
 
+"$ROOT_DIR/Scripts/generate-device-tests.sh"
+
 xcodebuild test \
     -project "$PROJECT_PATH" \
     -scheme "$SCHEME" \
