@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 - 2026-06-22
+
+- Add `RorkHookReplaceFunctionWithSize` so callers can validate the available
+  prologue length before installing a destructive arm64 detour.
+- Harden Mach-O, dyld shared-cache, symbol-table, and arm64 instruction parsing
+  with bounded reads, overflow checks, and deterministic malformed-input
+  failures.
+- Make protected pointer writes preserve original page protections, account for
+  process-level TPRO enforcement, and balance write-window state across failure
+  paths.
+- Harden image-local and global rebinding for authenticated arm64e slots,
+  future image loads, and loader-lock-safe filtering.
+- Add production C coverage thresholds, strict warning and sanitizer gates,
+  downstream Swift 5 consumer builds, and a Tuist-generated physical-device
+  harness for authenticated rebinding, shared-cache lookup, and TPRO behavior.
+
 ## 0.2.0 - 2026-06-19
 
 - Require a Swift 6.0 or newer toolchain and compile the package's Swift

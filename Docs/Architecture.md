@@ -41,7 +41,7 @@ remain additive and should not replace the C ABI.
 Rork Hook ships as source through SwiftPM:
 
 ```swift
-.package(url: "https://github.com/rorkai/rork-hook.git", from: "0.1.0")
+.package(url: "https://github.com/rorkai/rork-hook.git", from: "0.3.0")
 ```
 
 and:

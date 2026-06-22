@@ -66,7 +66,7 @@ let version = String(cString: RorkHookVersion())
 Use the tagged package:
 
 ```swift
-.package(url: "https://github.com/rorkai/rork-hook.git", from: "0.1.0")
+.package(url: "https://github.com/rorkai/rork-hook.git", from: "0.3.0")
 ```
 
 and depend on the `RorkHook` product:
