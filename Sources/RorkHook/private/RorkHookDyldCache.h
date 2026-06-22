@@ -1,28 +1,41 @@
 #ifndef RORK_HOOK_DYLD_CACHE_H
 #define RORK_HOOK_DYLD_CACHE_H
 
+#include <stddef.h>
 #include <stdint.h>
 
-/// Defines the subset of dyld shared-cache records used by RorkHook.
+/// On-disk dyld shared-cache records consumed by the local-symbol parser.
 ///
-/// These declarations contain only the on-disk fields required to locate image
-/// and local-symbol metadata. They are internal to the shared-cache parser and
-/// intentionally omit unrelated parts of the format.
+/// The cache header is represented through the newest field RorkHook reads so
+/// every retained member preserves a documented byte offset in older and newer
+/// cache generations. The parser copies records with `memcpy`; it never relies
+/// on a mapped file being naturally aligned for these C types.
 
-typedef struct {
-    char     magic[16];
+typedef struct RorkHookDyldCacheHeader {
+    /// Format and architecture identifier, such as `dyld_v1  arm64e`.
+    char magic[16];
+
+    /// File offset and count of the mapping table.
     uint32_t mappingOffset;
     uint32_t mappingCount;
-    uint32_t imagesOffsetOld;       // pre-iOS 15 image table offset
-    uint32_t imagesCountOld;        // pre-iOS 15 image table count
+
+    /// Legacy image-table location used by pre-iOS 15 cache layouts.
+    uint32_t imagesOffsetOld;
+    uint32_t imagesCountOld;
+
+    /// Cache metadata retained to preserve the on-disk header layout.
     uint64_t dyldBaseAddress;
     uint64_t codeSignatureOffset;
     uint64_t codeSignatureSize;
     uint64_t slideInfoOffsetUnused;
     uint64_t slideInfoSizeUnused;
-    uint64_t localSymbolsOffset;    // file offset of the local-symbols region
+
+    /// File range containing local-symbol metadata in this cache or sidecar.
+    uint64_t localSymbolsOffset;
     uint64_t localSymbolsSize;
-    uint8_t  uuid[16];
+
+    /// Cache identity and format metadata preceding the modern image table.
+    uint8_t uuid[16];
     uint64_t cacheType;
     uint32_t branchPoolsOffset;
     uint32_t branchPoolsCount;
@@ -66,42 +79,109 @@ typedef struct {
     uint64_t swiftOptsSize;
     uint32_t subCacheArrayOffset;
     uint32_t subCacheArrayCount;
-    uint8_t  symbolFileUUID[16];    // boundary marker: split-symbols caches add fields from here
+
+    /// UUID of the local-symbol sidecar.
+    ///
+    /// Its offset is also the format boundary used to distinguish modern
+    /// 64-bit per-image local-symbol entries from the legacy 32-bit entries.
+    uint8_t symbolFileUUID[16];
+
+    /// Modern fields retained between the sidecar UUID and image table.
     uint64_t rosettaReadOnlyAddr;
     uint64_t rosettaReadOnlySize;
     uint64_t rosettaReadWriteAddr;
     uint64_t rosettaReadWriteSize;
-    uint32_t imagesOffset;          // iOS 15+ image table offset
-    uint32_t imagesCount;           // iOS 15+ image table count
+
+    /// Image-table location used by iOS 15 and newer cache layouts.
+    uint32_t imagesOffset;
+    uint32_t imagesCount;
 } RorkHookDyldCacheHeader;
 
-typedef struct {
+/// Identifies one image and its path string in the main cache.
+typedef struct RorkHookDyldCacheImageInfo {
+    /// Unslid load address of the image in the shared region.
     uint64_t address;
+
+    /// Source-file metadata recorded when the cache was built.
     uint64_t modTime;
     uint64_t inode;
+
+    /// File offset of the image's NUL-terminated install name.
     uint32_t pathFileOffset;
+
+    /// Reserved bytes that keep each record eight-byte aligned.
     uint32_t pad;
 } RorkHookDyldCacheImageInfo;
 
-typedef struct {
-    uint32_t nlistOffset;       // offset (from localSymbolsOffset) of the nlist array
+/// Describes the three tables inside a cache's local-symbol region.
+///
+/// Every offset is relative to `localSymbolsOffset` in the containing cache
+/// header, not an absolute file offset.
+typedef struct RorkHookDyldCacheLocalSymbolsInfo {
+    /// Offset and entry count of the complete `nlist_64` table.
+    uint32_t nlistOffset;
     uint32_t nlistCount;
-    uint32_t stringsOffset;     // offset (from localSymbolsOffset) of the string pool
+
+    /// Offset and byte length of the NUL-terminated string pool.
+    uint32_t stringsOffset;
     uint32_t stringsSize;
-    uint32_t entriesOffset;     // offset (from localSymbolsOffset) of the per-image entries
+
+    /// Offset and count of per-image symbol-range entries.
+    uint32_t entriesOffset;
     uint32_t entriesCount;
 } RorkHookDyldCacheLocalSymbolsInfo;
 
-typedef struct {
+/// Legacy per-image local-symbol range with a 32-bit dylib offset.
+typedef struct RorkHookDyldCacheLocalSymbolsEntry32 {
+    /// Offset identifying the image this record belongs to.
     uint32_t dylibOffset;
+
+    /// Half-open range in the complete local `nlist_64` table.
     uint32_t nlistStartIndex;
     uint32_t nlistCount;
 } RorkHookDyldCacheLocalSymbolsEntry32;
 
-typedef struct {
+/// Modern per-image local-symbol range with a 64-bit dylib offset.
+typedef struct RorkHookDyldCacheLocalSymbolsEntry64 {
+    /// Offset identifying the image this record belongs to.
     uint64_t dylibOffset;
+
+    /// Half-open range in the complete local `nlist_64` table.
     uint32_t nlistStartIndex;
     uint32_t nlistCount;
 } RorkHookDyldCacheLocalSymbolsEntry64;
+
+#if defined(__LP64__)
+_Static_assert(
+    offsetof(RorkHookDyldCacheHeader, mappingOffset) == 16,
+    "dyld cache mappingOffset layout changed");
+_Static_assert(
+    offsetof(RorkHookDyldCacheHeader, localSymbolsOffset) == 72,
+    "dyld cache localSymbolsOffset layout changed");
+_Static_assert(
+    offsetof(RorkHookDyldCacheHeader, mappingWithSlideOffset) == 312,
+    "dyld cache mappingWithSlideOffset layout changed");
+_Static_assert(
+    offsetof(RorkHookDyldCacheHeader, symbolFileUUID) == 400,
+    "dyld cache symbolFileUUID layout changed");
+_Static_assert(
+    offsetof(RorkHookDyldCacheHeader, imagesOffset) == 448,
+    "dyld cache imagesOffset layout changed");
+_Static_assert(
+    sizeof(RorkHookDyldCacheHeader) == 456,
+    "dyld cache header prefix layout changed");
+_Static_assert(
+    sizeof(RorkHookDyldCacheImageInfo) == 32,
+    "dyld cache image record layout changed");
+_Static_assert(
+    sizeof(RorkHookDyldCacheLocalSymbolsInfo) == 24,
+    "dyld cache local-symbol info layout changed");
+_Static_assert(
+    sizeof(RorkHookDyldCacheLocalSymbolsEntry32) == 12,
+    "legacy dyld local-symbol entry layout changed");
+_Static_assert(
+    sizeof(RorkHookDyldCacheLocalSymbolsEntry64) == 16,
+    "modern dyld local-symbol entry layout changed");
+#endif
 
 #endif /* RORK_HOOK_DYLD_CACHE_H */

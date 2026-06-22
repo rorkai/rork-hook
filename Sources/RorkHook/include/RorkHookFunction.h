@@ -19,12 +19,13 @@ RORK_HOOK_ASSUME_NONNULL_BEGIN
 
 /// Encodes an unconditional absolute jump to `destination` into `instructions`.
 ///
-/// On arm64 this is four `MOVK x16, ...` instructions that materialise the 64-bit
-/// destination followed by `BR x16`, which reaches any address without relying
-/// on PC-relative range. `capacity` is the number of `uint32_t` slots
-/// available; the function writes nothing and returns 0 when the buffer is too
-/// small or the architecture is unsupported. Otherwise it returns the number of
-/// instructions written (``RORK_HOOK_ABSOLUTE_JUMP_WORDS``).
+/// On arm64 this is four `MOVK x16, ...` instructions that materialize the
+/// 64-bit destination followed by `BR x16`, which reaches any address without
+/// relying on PC-relative range. `capacity` is the number of `uint32_t` slots
+/// available; the function writes nothing and returns 0 when the arguments are
+/// invalid, the buffer is too small, or the architecture is unsupported.
+/// Otherwise it returns the number of instructions written
+/// (``RORK_HOOK_ABSOLUTE_JUMP_WORDS``).
 ///
 /// This is the pure code-generation primitive behind ``RorkHookReplaceFunction``
 /// and is exposed so callers can build their own trampolines and so the
@@ -33,14 +34,39 @@ size_t RorkHookBuildAbsoluteJump(const void *destination,
                                  uint32_t *instructions,
                                  size_t capacity);
 
+/// Overwrites the start of `function` with an absolute jump to `replacement`
+/// after validating that `patchableBytes` can contain the complete sequence.
+///
+/// The caller must own at least ``RORK_HOOK_ABSOLUTE_JUMP_WORDS`` consecutive
+/// instructions at `function` and must prevent every other thread from entering
+/// that range until this function returns. The target must be instruction
+/// aligned, executable, readable, and contained within one VM page. Original
+/// page protection is restored after the patch; if restoration fails, the
+/// original instructions are copied back before the error is returned.
+///
+/// Returns `KERN_INVALID_ARGUMENT` when the pointers, alignment, or patchable
+/// length are invalid; `KERN_INVALID_ADDRESS` when the bytes are unreadable;
+/// `KERN_PROTECTION_FAILURE` when the target is not executable; otherwise
+/// returns the failing VM operation or `KERN_SUCCESS`.
+kern_return_t RorkHookReplaceFunctionWithSize(void *function,
+                                              size_t patchableBytes,
+                                              void *replacement);
+
 /// Overwrites the prologue of `function` with an absolute jump to
 /// `replacement`, so every call to `function` runs `replacement` instead.
 ///
 /// This is a destructive, non-reentrant detour: the original instructions are
 /// clobbered, so the replacement cannot call through to the original. Pointer
-/// authentication bits are stripped from both arguments before patching.
+/// authentication bits are stripped from both arguments before patching. The
+/// caller must guarantee that at least ``RORK_HOOK_ABSOLUTE_JUMP_WORDS``
+/// instructions are safe to overwrite and that no thread can execute the target
+/// while it is being changed. Call
+/// ``RorkHookReplaceFunctionWithSize`` when the available prologue length is
+/// known so the library can validate it.
+///
 /// Returns `KERN_SUCCESS` on success, or the failing `kern_return_t` from the
-/// memory-protection step. Unsupported architectures return `KERN_NOT_SUPPORTED`.
+/// validation or memory-protection step. Unsupported architectures return
+/// `KERN_NOT_SUPPORTED`.
 kern_return_t RorkHookReplaceFunction(void *function, void *replacement);
 
 RORK_HOOK_ASSUME_NONNULL_END

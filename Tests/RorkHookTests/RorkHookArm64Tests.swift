@@ -1,4 +1,5 @@
 import RorkHook
+import RorkHookTestSupport
 import XCTest
 
 /// Tests for the arm64 instruction decoders used to inspect dyld/runtime stubs.
@@ -16,6 +17,25 @@ final class RorkHookArm64Tests: XCTestCase {
     func testSignExtendHandlesPositiveAndNegativeValues() {
         XCTAssertEqual(RorkHookArm64SignExtend(0b0_1010, 5), 10)
         XCTAssertEqual(RorkHookArm64SignExtend(0b1_0110, 5), -10)
+    }
+
+    /// Verifies that bits above the declared immediate width do not affect the
+    /// sign-extended result.
+    func testSignExtendMasksBitsOutsideImmediate() {
+        XCTAssertEqual(RorkHookArm64SignExtend(0b10_01010, 5), 10)
+        XCTAssertEqual(RorkHookArm64SignExtend(0b10_10110, 5), -10)
+    }
+
+    /// Verifies that invalid widths are rejected without performing an invalid
+    /// shift in the C implementation.
+    func testSignExtendRejectsInvalidBitWidths() {
+        XCTAssertEqual(RorkHookArm64SignExtend(1, 0), 0)
+        XCTAssertEqual(RorkHookArm64SignExtend(1, 65), 0)
+    }
+
+    /// Verifies every decoder rejects missing output storage without faulting.
+    func testDecodersRejectMissingOutputStorage() {
+        XCTAssertTrue(RorkHookTestSupportArm64DecoderNullArgumentGuardsPass())
     }
 
     /// Verifies that `ADRP` decoding reconstructs its page-relative address.
@@ -69,6 +89,20 @@ final class RorkHookArm64Tests: XCTestCase {
         XCTAssertFalse(RorkHookDecodeLDUR64(ldur, baseRegister + 1, &signedOffset))
     }
 
+    /// Verifies that the unscaled-load decoder does not accept pre-indexed or
+    /// post-indexed addressing forms that share the same opcode prefix.
+    func testDecodeLDURRejectsIndexedAddressingModes() {
+        let baseRegister: UInt8 = 11
+        let immediate = UInt32(0x10) << 12
+        let registers = (UInt32(baseRegister) << 5) | 7
+        let postIndex = UInt32(0xf840_0400) | immediate | registers
+        let preIndex = UInt32(0xf840_0c00) | immediate | registers
+        var offset: Int = 0
+
+        XCTAssertFalse(RorkHookDecodeLDUR64(postIndex, baseRegister, &offset))
+        XCTAssertFalse(RorkHookDecodeLDUR64(preIndex, baseRegister, &offset))
+    }
+
     /// Verifies `MOVZ` immediate reconstruction.
     func testDecodeMOVZImmediate() {
         let instruction = UInt32(0xd280_0000) | (1 << 21) | (0xabcd << 5) | 4
@@ -76,6 +110,15 @@ final class RorkHookArm64Tests: XCTestCase {
 
         XCTAssertTrue(RorkHookDecodeMOVZImmediate(instruction, &value))
         XCTAssertEqual(value, 0xabcd_0000)
+    }
+
+    /// Verifies that the decoder accepts only the 64-bit MOVZ form used for
+    /// pointer-sized offsets.
+    func testDecodeMOVZImmediateRejects32BitInstruction() {
+        let instruction = UInt32(0x5280_0000) | (0xabcd << 5) | 4
+        var value: UInt = 0
+
+        XCTAssertFalse(RorkHookDecodeMOVZImmediate(instruction, &value))
     }
 
     /// Verifies that branch following accepts `B` veneers but rejects `BL` calls.
@@ -93,6 +136,20 @@ final class RorkHookArm64Tests: XCTestCase {
 
             base[0] = 0x9400_0002
             XCTAssertEqual(RorkHookFollowOneBranch(base), base)
+        }
+    }
+
+    /// Verifies that a backwards branch resolves relative to its instruction.
+    func testFollowOneBranchHandlesNegativeDisplacement() {
+        var words: [UInt32] = [
+            0xd503_201f,
+            0xd503_201f,
+            0x17ff_fffe,
+        ]
+
+        words.withUnsafeMutableBufferPointer { buffer in
+            let base = buffer.baseAddress!
+            XCTAssertEqual(RorkHookFollowOneBranch(base + 2), base)
         }
     }
 }

@@ -30,6 +30,15 @@ let version = String(cString: RorkHookVersion())
 - `Tests/RorkHookTests`: host-runnable Swift tests for deterministic behavior
   and safe host fallbacks.
 - `Tests/RorkHookTestSupport`: C/Objective-C helpers used by correctness tests.
+- `DeviceTests`: opt-in arm64e iPhone host application and XCTest bundle for
+  device-only runtime behavior.
+- `Scripts/generate-device-tests.sh`: generates the device harness from its
+  pinned Tuist manifest.
+- `Scripts/test-coverage.sh`: production-C coverage gate.
+- `Scripts/test-undefined-behavior.sh`: whole-suite UndefinedBehaviorSanitizer
+  gate.
+- `Scripts/test-sanitizers.sh`: AddressSanitizer and ThreadSanitizer gates.
+- `Scripts/test-device.sh`: signed physical-iPhone test runner.
 - `Scripts/smoke-client-package.sh`: temporary downstream package smoke test for
   Swift and Objective-C/C import paths.
 
@@ -101,8 +110,8 @@ public struct HookEnvironment {
 ```
 
 Protected pointer slots can be written through the same C ABI. The helper
-temporarily changes page protection when possible and falls back to a TPRO write
-window on supported arm64e devices.
+temporarily changes page protection when possible and opens a TPRO write window
+when the current arm64e process is TPRO-enforced.
 
 ```swift
 import RorkHook
@@ -166,6 +175,14 @@ Run the host SwiftPM tests:
 swift test
 ```
 
+Run the production-C coverage and sanitizer gates:
+
+```bash
+Scripts/test-coverage.sh
+Scripts/test-undefined-behavior.sh
+Scripts/test-sanitizers.sh
+```
+
 Smoke-test downstream package consumption:
 
 ```bash
@@ -173,8 +190,21 @@ Scripts/smoke-client-package.sh
 ```
 
 The smoke test builds a temporary SwiftPM package that imports `RorkHook` from
-Swift and includes `<RorkHook/RorkHook.h>` from Objective-C. When Xcode is
-available, it also performs a generic iOS compile check.
+Swift and includes `<RorkHook/RorkHook.h>` from Objective-C. It compiles that
+client in Swift 5 language mode for both macOS and arm64 iOS.
+
+Run the device-only runtime tests with a connected, trusted iPhone:
+
+```bash
+RORK_HOOK_DEVICE_UDID=<device-udid> \
+DEVELOPMENT_TEAM=<team-id> \
+Scripts/test-device.sh
+```
+
+The runner generates the harness with the Tuist version pinned in `.mise.toml`,
+builds an arm64e host application, and validates process-level TPRO state, live
+shared-cache lookup, and authenticated import-slot rebinding. See
+`DeviceTests/README.md` for setup, signing, and TPRO-enforcement details.
 
 ## Safety
 
@@ -184,9 +214,12 @@ Several APIs intentionally depend on Apple runtime implementation details such
 as Mach-O section layout, dyld shared-cache local-symbol metadata, pointer
 authentication, and arm64e TPRO behavior.
 
-Host tests verify deterministic helpers and safe fallback behavior. Live detours,
-TPRO writes, dyld cache behavior, and runtime integration must be validated on
-real iOS hardware.
+Host tests verify deterministic helpers, live detours, rebinding across dynamic
+images, malformed binary inputs, memory-protection restoration, and safe
+platform fallbacks. The opt-in device harness validates authenticated-slot
+calls and live dyld shared-cache lookup on physical arm64e hardware. A
+TPRO-enforced write requires an appropriately authorized signing environment;
+ordinary development signing exercises the non-TPRO path.
 
 See `Docs/Safety.md` for operational constraints.
 

@@ -19,6 +19,11 @@ RORK_HOOK_ASSUME_NONNULL_BEGIN
 /// target function untouched and only edits this image's import table, so calls
 /// made through other images are unaffected. Pointer-authenticated slots are
 /// re-signed for their slot address.
+///
+/// Rebinding is best-effort because this compatibility API does not return a
+/// result. A matching slot that cannot be made writable is left unchanged while
+/// the scan continues. Use process logs or a post-installation call check when
+/// a caller must verify that every expected slot changed.
 void RorkHookRebindSymbolInImage(const RorkHookMachHeader *header,
                                  void *replacee,
                                  void *replacement);
@@ -28,9 +33,13 @@ void RorkHookRebindSymbolInImage(const RorkHookMachHeader *header,
 ///
 /// `filter` (may be ``RORK_HOOK_NO_FILTER``) decides which images participate;
 /// the image that defines `replacement` is always excluded so it keeps calling
-/// the original. Returns `true` once the global rebind is registered, or
+/// the original. Future-image processing runs under dyld's loader lock, so a
+/// filter must satisfy the loader-safety requirements documented by
+/// ``RorkHookImageFilter``. Registrations live for the remainder of the process.
+/// Returns `true` once the global rebind is registered, or
 /// `false` if the arguments are invalid or the defining image of `replacement`
-/// cannot be determined.
+/// cannot be determined. As with image-local rebinding, individual unwritable
+/// slots remain unchanged without invalidating the registration.
 bool RorkHookRebindSymbolGlobally(void *replacee,
                                   void *replacement,
                                   RorkHookImageFilter RORK_HOOK_NULLABLE filter);

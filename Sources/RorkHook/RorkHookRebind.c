@@ -4,9 +4,10 @@
 #include "RorkHookMemory.h"
 
 #include <dlfcn.h>
+#include <dispatch/dispatch.h>
 #include <mach-o/dyld.h>
 #include <mach-o/getsect.h>
-#include <os/lock.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,8 +21,7 @@
 /// address used for slot comparisons.
 static void *RorkHookStripPointer(void *pointer) {
 #if __has_feature(ptrauth_calls)
-    return ptrauth_strip(ptrauth_auth_function(pointer, ptrauth_key_function_pointer, 0),
-                         ptrauth_key_function_pointer);
+    return ptrauth_strip(pointer, ptrauth_key_function_pointer);
 #else
     return pointer;
 #endif
@@ -29,16 +29,20 @@ static void *RorkHookStripPointer(void *pointer) {
 
 /// Writes `value` into a symbol-pointer slot that may live in read-only and/or
 /// TPRO-hardened memory, restoring the original protection afterwards.
+///
+/// `VM_PROT_COPY` also permits ordinary writable mappings and avoids a second
+/// attempt after an ambiguous failure: the underlying API can return `false`
+/// when the store completed but protection restoration did not.
 static bool RorkHookStoreSlot(void **slot, void *value) {
-    if (RorkHookStoreProtectedPointer(slot, value, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY)) {
-        return true;
-    }
-    return RorkHookStoreProtectedPointer(slot, value, VM_PROT_READ | VM_PROT_WRITE);
+    return RorkHookStoreProtectedPointer(
+        slot,
+        value,
+        VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
 }
 
 /// State threaded through one image's section scan: the image being rebound,
 /// the raw replacee to match, and the replacement to install.
-typedef struct {
+typedef struct RorkHookRebindImageContext {
     const RorkHookMachHeader *header;
     void *replaceeRaw;
     void *replacement;
@@ -55,6 +59,10 @@ static void RorkHookCopyName(char out[17], const char name[16]) {
 /// authenticated slots.
 static void RorkHookRebindSection(const RorkHookRebindImageContext *context,
                                   const RorkHookSection *section) {
+    if (context == NULL || section == NULL) {
+        return;
+    }
+
     // Resolve the section's mapped address with getsectiondata rather than
     // `section->addr + slide`. In the dyld shared cache, __TEXT and the data
     // segments are split into separate regions with different offsets, so the
@@ -67,12 +75,16 @@ static void RorkHookRebindSection(const RorkHookRebindImageContext *context,
     RorkHookCopyName(sectname, section->sectname);
 
     unsigned long sectionSize = 0;
-    void **slots = (void **)getsectiondata((const struct mach_header_64 *)context->header,
-                                           segname,
-                                           sectname,
-                                           &sectionSize);
+    void **slots = (void **)getsectiondata(
+        (const struct mach_header_64 *)context->header,
+        segname,
+        sectname,
+        &sectionSize);
     size_t slotCount = (size_t)sectionSize / sizeof(void *);
-    if (slots == NULL || slotCount == 0 || !RorkHookMemoryIsReadable(slots, (size_t)sectionSize)) {
+    if (slots == NULL ||
+        slotCount == 0 ||
+        sectionSize % sizeof(void *) != 0 ||
+        !RorkHookMemoryIsReadable(slots, (size_t)sectionSize)) {
         return;
     }
 
@@ -86,14 +98,11 @@ static void RorkHookRebindSection(const RorkHookRebindImageContext *context,
             continue;
         }
 
-        void *resolved = current;
-#if __has_feature(ptrauth_calls)
-        if (authenticated) {
-            resolved = ptrauth_strip(
-                ptrauth_auth_function(current, ptrauth_key_function_pointer, &slots[index]),
-                ptrauth_key_function_pointer);
-        }
-#endif
+        // A slot may carry pointer-authentication decoration even when it does
+        // not live in `__auth_got`. Stripping does not authenticate the pointer,
+        // so it is safe for foreign PAC schemas and sufficient for comparing
+        // the underlying virtual address.
+        void *resolved = RorkHookStripPointer(current);
         if (resolved != context->replaceeRaw) {
             continue;
         }
@@ -101,18 +110,22 @@ static void RorkHookRebindSection(const RorkHookRebindImageContext *context,
         void *finalValue = context->replacement;
 #if __has_feature(ptrauth_calls)
         if (authenticated) {
-            // __auth_got function-pointer slots are signed with the IB
-            // (process-independent code) key, diversified by the slot address.
-            // Re-sign the replacement with that key so the call site, which
-            // authenticates with IB, accepts it; signing with IA would fail
-            // authentication at the call and crash.
-            finalValue = ptrauth_auth_and_resign(context->replacement, ptrauth_key_function_pointer, 0,
-                                                 ptrauth_key_process_independent_code, &slots[index]);
+            // Standard authenticated function-pointer slots use the IA key with
+            // address diversity. Sign the raw replacement for this exact slot
+            // without first authenticating a type-erased caller pointer.
+            void *rawReplacement =
+                ptrauth_strip(context->replacement, ptrauth_key_function_pointer);
+            finalValue = ptrauth_sign_unauthenticated(
+                rawReplacement,
+                ptrauth_key_function_pointer,
+                &slots[index]);
         } else {
-            finalValue = ptrauth_strip(context->replacement, ptrauth_key_function_pointer);
+            finalValue = RorkHookStripPointer(context->replacement);
         }
 #endif
-        RorkHookStoreSlot(&slots[index], finalValue);
+        // This API is intentionally best-effort. A slot that cannot be made
+        // writable remains unchanged while scanning continues.
+        (void)RorkHookStoreSlot(&slots[index], finalValue);
     }
 }
 
@@ -122,30 +135,40 @@ static bool RorkHookRebindImageLoadCommand(const struct load_command *command,
                                            void *contextRaw) {
     (void)index;
 
-    if (command->cmd != RORK_HOOK_LC_SEGMENT || command->cmdsize < sizeof(RorkHookSegmentCommand)) {
+    if (command == NULL ||
+        contextRaw == NULL ||
+        command->cmd != RORK_HOOK_LC_SEGMENT ||
+        command->cmdsize < sizeof(RorkHookSegmentCommand)) {
         return true;
     }
 
-    const RorkHookSegmentCommand *segment = (const RorkHookSegmentCommand *)command;
-    uint64_t sectionsEnd = (uint64_t)sizeof(*segment) + ((uint64_t)segment->nsects * sizeof(RorkHookSection));
-    if (sectionsEnd > command->cmdsize) {
+    const RorkHookSegmentCommand *segment =
+        (const RorkHookSegmentCommand *)(const void *)command;
+    size_t sectionsSize = 0;
+    size_t sectionsEnd = 0;
+    if (__builtin_mul_overflow(
+            (size_t)segment->nsects,
+            sizeof(RorkHookSection),
+            &sectionsSize) ||
+        __builtin_add_overflow(
+            sizeof(*segment),
+            sectionsSize,
+            &sectionsEnd) ||
+        sectionsEnd > command->cmdsize) {
         return true;
     }
 
-    bool dataSegment =
-        strncmp(segment->segname, "__AUTH_CONST", sizeof(segment->segname)) == 0 ||
-        strncmp(segment->segname, "__DATA_CONST", sizeof(segment->segname)) == 0 ||
-        strncmp(segment->segname, SEG_DATA, sizeof(segment->segname)) == 0;
-    if (!dataSegment) {
-        return true;
-    }
-
-    RorkHookRebindImageContext *context = (RorkHookRebindImageContext *)contextRaw;
+    RorkHookRebindImageContext *context =
+        (RorkHookRebindImageContext *)contextRaw;
     const RorkHookSection *sections =
-        (const RorkHookSection *)((uintptr_t)segment + sizeof(*segment));
-    for (uint32_t sectionIndex = 0; sectionIndex < segment->nsects; sectionIndex += 1) {
+        (const RorkHookSection *)(const void *)(
+            (const uint8_t *)segment + sizeof(*segment));
+    for (uint32_t sectionIndex = 0;
+         sectionIndex < segment->nsects;
+         sectionIndex += 1) {
         uint32_t type = sections[sectionIndex].flags & SECTION_TYPE;
-        if (type == S_LAZY_SYMBOL_POINTERS || type == S_NON_LAZY_SYMBOL_POINTERS) {
+        if (type == S_LAZY_SYMBOL_POINTERS ||
+            type == S_NON_LAZY_SYMBOL_POINTERS) {
             RorkHookRebindSection(context, &sections[sectionIndex]);
         }
     }
@@ -166,26 +189,40 @@ void RorkHookRebindSymbolInImage(const RorkHookMachHeader *header,
         .replaceeRaw = replaceeRaw,
         .replacement = replacement,
     };
-    RorkHookForEachLoadCommand(header, RorkHookRebindImageLoadCommand, &context);
+    (void)RorkHookForEachLoadCommand(
+        header,
+        RorkHookRebindImageLoadCommand,
+        &context);
 }
 
 #pragma mark - Global rebind registry
 
-typedef struct {
+/// Immutable process-lifetime registration published through the lock-free
+/// global list.
+///
+/// Entries are never removed, so readers running under dyld's loader lock can
+/// traverse the list without reclamation or external synchronization.
+typedef struct RorkHookGlobalRebind {
     const RorkHookMachHeader *sourceHeader;
     void *replacee;
     void *replacement;
     RorkHookImageFilter filter;
+    struct RorkHookGlobalRebind *next;
 } RorkHookGlobalRebind;
 
-static os_unfair_lock gRebindLock = OS_UNFAIR_LOCK_INIT;
-static RorkHookGlobalRebind *gRebinds = NULL;
-static uint32_t gRebindCount = 0;
-static bool gAddImageCallbackRegistered = false;
+/// Head of the immutable process-lifetime registration list.
+static _Atomic(RorkHookGlobalRebind *) gRebinds = NULL;
 
-/// Applies a single registered rebind to one image, honouring the source-image
+/// Ensures dyld receives exactly one process-wide image-load callback.
+static dispatch_once_t gAddImageCallbackOnce;
+
+/// Applies a single registered rebind to one image, honoring the source-image
 /// exclusion and the optional filter.
-static void RorkHookApplyRebind(const RorkHookGlobalRebind *rebind, const RorkHookMachHeader *header) {
+static void RorkHookApplyRebind(const RorkHookGlobalRebind *rebind,
+                                const RorkHookMachHeader *header) {
+    if (rebind == NULL || header == NULL) {
+        return;
+    }
     if (header == rebind->sourceHeader) {
         return;
     }
@@ -197,33 +234,27 @@ static void RorkHookApplyRebind(const RorkHookGlobalRebind *rebind, const RorkHo
 
 /// dyld image-load callback: applies every registered rebind to a newly mapped
 /// image. Also fires once per already-loaded image when first registered.
-static void RorkHookHandleImageAdded(const struct mach_header *machHeader, intptr_t slide) {
+static void RorkHookHandleImageAdded(const struct mach_header *machHeader,
+                                     intptr_t slide) {
     (void)slide;
     const RorkHookMachHeader *header = (const RorkHookMachHeader *)machHeader;
-
-    // Snapshot the registry so the section rewriting runs without the lock held.
-    os_unfair_lock_lock(&gRebindLock);
-    uint32_t count = gRebindCount;
-    RorkHookGlobalRebind *snapshot = NULL;
-    if (count != 0) {
-        snapshot = (RorkHookGlobalRebind *)malloc(sizeof(*snapshot) * count);
-        if (snapshot != NULL) {
-            memcpy(snapshot, gRebinds, sizeof(*snapshot) * count);
-        }
+    RorkHookGlobalRebind *rebind =
+        atomic_load_explicit(&gRebinds, memory_order_acquire);
+    while (rebind != NULL) {
+        RorkHookApplyRebind(rebind, header);
+        rebind = rebind->next;
     }
-    os_unfair_lock_unlock(&gRebindLock);
-
-    if (snapshot == NULL) {
-        return;
-    }
-    for (uint32_t index = 0; index < count; index += 1) {
-        RorkHookApplyRebind(&snapshot[index], header);
-    }
-    free(snapshot);
 }
 
-/// Registers a process-wide rebind and applies it to current and future images.
-bool RorkHookRebindSymbolGlobally(void *replacee, void *replacement, RorkHookImageFilter filter) {
+/// Publishes a process-lifetime rebind before registering the dyld callback.
+///
+/// The release/acquire list ordering makes each immutable entry visible to
+/// concurrent image-load callbacks. Registering the callback also visits all
+/// images already loaded by dyld; the explicit enumeration closes the remaining
+/// interleavings between concurrent registrations.
+bool RorkHookRebindSymbolGlobally(void *replacee,
+                                  void *replacement,
+                                  RorkHookImageFilter filter) {
     if (replacee == NULL || replacement == NULL) {
         return false;
     }
@@ -231,36 +262,49 @@ bool RorkHookRebindSymbolGlobally(void *replacee, void *replacement, RorkHookIma
     // Identify the image that defines the replacement so it keeps calling the
     // original implementation and is never rebound onto itself.
     Dl_info replacementInfo;
-    if (dladdr(replacement, &replacementInfo) == 0 || replacementInfo.dli_fbase == NULL) {
+    void *replacementRaw = RorkHookStripPointer(replacement);
+    if (dladdr(replacementRaw, &replacementInfo) == 0 ||
+        replacementInfo.dli_fbase == NULL) {
         return false;
     }
-    const RorkHookMachHeader *sourceHeader = (const RorkHookMachHeader *)replacementInfo.dli_fbase;
-    uint32_t imageCount = _dyld_image_count();
-
-    os_unfair_lock_lock(&gRebindLock);
-    RorkHookGlobalRebind *resized =
-        (RorkHookGlobalRebind *)realloc(gRebinds, sizeof(*resized) * (gRebindCount + 1));
-    if (resized == NULL) {
-        os_unfair_lock_unlock(&gRebindLock);
+    const RorkHookMachHeader *sourceHeader =
+        (const RorkHookMachHeader *)replacementInfo.dli_fbase;
+    RorkHookGlobalRebind *entry = malloc(sizeof(*entry));
+    if (entry == NULL) {
         return false;
     }
-    gRebinds = resized;
-    gRebinds[gRebindCount] = (RorkHookGlobalRebind){sourceHeader, replacee, replacement, filter};
-    gRebindCount += 1;
-    bool mustRegister = !gAddImageCallbackRegistered;
-    gAddImageCallbackRegistered = true;
-    RorkHookGlobalRebind entry = gRebinds[gRebindCount - 1];
-    os_unfair_lock_unlock(&gRebindLock);
+    *entry = (RorkHookGlobalRebind){
+        .sourceHeader = sourceHeader,
+        .replacee = replacee,
+        .replacement = replacement,
+        .filter = filter,
+        .next = NULL,
+    };
 
-    if (mustRegister) {
-        // Registering fires the callback synchronously for every already-loaded
-        // image, applying this first entry; it also covers future images.
+    RorkHookGlobalRebind *head =
+        atomic_load_explicit(&gRebinds, memory_order_relaxed);
+    do {
+        entry->next = head;
+    } while (!atomic_compare_exchange_weak_explicit(
+        &gRebinds,
+        &head,
+        entry,
+        memory_order_release,
+        memory_order_relaxed));
+
+    dispatch_once(&gAddImageCallbackOnce, ^{
         _dyld_register_func_for_add_image(&RorkHookHandleImageAdded);
-    } else {
-        // The callback only fires for images loaded after registration, so apply
-        // this new entry to the images that are already present.
-        for (uint32_t index = 0; index < imageCount; index += 1) {
-            RorkHookApplyRebind(&entry, (const RorkHookMachHeader *)_dyld_get_image_header(index));
+    });
+
+    // Publishing the entry before taking this count closes the registration
+    // gap: an image loaded earlier appears in this enumeration, while one loaded
+    // later is handled by the already-registered callback.
+    uint32_t imageCount = _dyld_image_count();
+    for (uint32_t index = 0; index < imageCount; index += 1) {
+        const RorkHookMachHeader *header =
+            (const RorkHookMachHeader *)_dyld_get_image_header(index);
+        if (header != NULL) {
+            RorkHookApplyRebind(entry, header);
         }
     }
     return true;

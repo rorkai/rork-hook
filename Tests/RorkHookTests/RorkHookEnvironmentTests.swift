@@ -4,7 +4,7 @@ import RorkHookTestSupport
 
 /// Smoke tests for the environment-query helpers. These run on the host (macOS
 /// or the simulator), where TPRO is unsupported and the device-only fast paths
-/// fall back to portable behaviour.
+/// fall back to portable behavior.
 final class RorkHookEnvironmentTests: XCTestCase {
 
     /// Verifies the package and ABI version probes.
@@ -60,5 +60,18 @@ final class RorkHookEnvironmentTests: XCTestCase {
     /// Verifies defensive C null guards that are hidden by Swift nullability.
     func testCABIRejectsNullArguments() {
         XCTAssertTrue(RorkHookTestSupportNullArgumentGuardsPass())
+    }
+
+    /// Verifies pointer signing does not discard PAC metadata from data
+    /// addresses that must be returned unchanged.
+    func testSigningPreservesAuthenticatedNonExecutablePointer() {
+        XCTAssertTrue(
+            RorkHookTestSupportPreservesSignedNonExecutablePointer()
+        )
+    }
+
+    /// Verifies bounded load-command iteration rejects malformed table metadata.
+    func testLoadCommandIterationRejectsMalformedTables() {
+        XCTAssertTrue(RorkHookTestSupportRejectsMalformedLoadCommands())
     }
 }

@@ -1,33 +1,82 @@
 #include "RorkHookArm64.h"
 
-/// Expands a fixed-width signed immediate into a native signed integer.
+/// Adds a signed instruction displacement without overflowing either the signed
+/// displacement or the native address space.
+///
+/// Negative magnitudes are formed without evaluating `-INT64_MIN`. The result
+/// is written only when the complete addition or subtraction is representable.
+static bool RorkHookAddSignedOffset(uintptr_t base,
+                                    int64_t offset,
+                                    uintptr_t *resultOut) {
+    if (resultOut == NULL) {
+        return false;
+    }
+
+    if (offset < 0) {
+        uint64_t magnitude = (uint64_t)(-(offset + 1)) + 1;
+        if (magnitude > UINTPTR_MAX || base < (uintptr_t)magnitude) {
+            return false;
+        }
+        *resultOut = base - (uintptr_t)magnitude;
+        return true;
+    }
+
+    uint64_t magnitude = (uint64_t)offset;
+    if (magnitude > UINTPTR_MAX ||
+        base > UINTPTR_MAX - (uintptr_t)magnitude) {
+        return false;
+    }
+    *resultOut = base + (uintptr_t)magnitude;
+    return true;
+}
+
+/// Expands a fixed-width two's-complement immediate into a 64-bit signed value.
 int64_t RorkHookArm64SignExtend(uint64_t value, int bits) {
+    if (bits <= 0 || bits > 64) {
+        return 0;
+    }
+    if (bits == 64) {
+        return (int64_t)value;
+    }
+
+    value &= (1ULL << bits) - 1;
     uint64_t signBit = 1ULL << (bits - 1);
     return (int64_t)((value ^ signBit) - signBit);
 }
 
-/// Parses an `ADRP` word and reconstructs the page-relative address it targets.
+/// Parses an `ADRP` word and reconstructs its destination register and address.
 bool RorkHookDecodeADRP(uint32_t instruction,
                         uintptr_t pc,
                         uint8_t *targetRegister,
                         uintptr_t *pageAddress) {
-    if ((instruction & 0x9f000000u) != 0x90000000u) {
+    if (targetRegister == NULL ||
+        pageAddress == NULL ||
+        (instruction & 0x9f000000u) != 0x90000000u) {
         return false;
     }
 
     uint64_t immlo = (instruction >> 29) & 0x3u;
     uint64_t immhi = (instruction >> 5) & 0x7ffffu;
     int64_t signedPages = RorkHookArm64SignExtend((immhi << 2) | immlo, 21);
+    uintptr_t decodedPage = 0;
+    if (!RorkHookAddSignedOffset(
+            pc & ~(uintptr_t)0xfff,
+            signedPages * 4096,
+            &decodedPage)) {
+        return false;
+    }
+
     *targetRegister = (uint8_t)(instruction & 0x1fu);
-    *pageAddress = (pc & ~0xfffULL) + ((uintptr_t)(signedPages << 12));
+    *pageAddress = decodedPage;
     return true;
 }
 
-/// Parses an `ADD (immediate)` that extends an existing base register value.
+/// Parses an `ADD (immediate)` that preserves the requested base register.
 bool RorkHookDecodeADDImmediate(uint32_t instruction,
                                 uint8_t baseRegister,
                                 uintptr_t *offset) {
-    if ((instruction & 0xff800000u) != 0x91000000u) {
+    if (offset == NULL ||
+        (instruction & 0xff800000u) != 0x91000000u) {
         return false;
     }
     uint8_t destination = instruction & 0x1fu;
@@ -46,7 +95,8 @@ bool RorkHookDecodeADDImmediate(uint32_t instruction,
 bool RorkHookDecodeLDRUnsigned64(uint32_t instruction,
                                  uint8_t baseRegister,
                                  uintptr_t *offset) {
-    if ((instruction & 0xffc00000u) != 0xf9400000u) {
+    if (offset == NULL ||
+        (instruction & 0xffc00000u) != 0xf9400000u) {
         return false;
     }
     uint8_t source = (instruction >> 5) & 0x1fu;
@@ -58,9 +108,10 @@ bool RorkHookDecodeLDRUnsigned64(uint32_t instruction,
     return true;
 }
 
-/// Parses a scaled unsigned 64-bit `LDR` without validating the base register.
+/// Parses a scaled unsigned 64-bit `LDR` without constraining its base register.
 bool RorkHookDecodeLDRUnsignedOffset64(uint32_t instruction, uintptr_t *offset) {
-    if ((instruction & 0xffc00000u) != 0xf9400000u) {
+    if (offset == NULL ||
+        (instruction & 0xffc00000u) != 0xf9400000u) {
         return false;
     }
 
@@ -69,9 +120,10 @@ bool RorkHookDecodeLDRUnsignedOffset64(uint32_t instruction, uintptr_t *offset) 
     return true;
 }
 
-/// Parses a signed pre-indexed 64-bit `LDR` and returns the byte displacement.
+/// Parses a signed pre-indexed 64-bit `LDR` and returns its byte displacement.
 bool RorkHookDecodeLDRSignedPreIndex64(uint32_t instruction, intptr_t *offset) {
-    if ((instruction & 0xffe00c00u) != 0xf8400c00u) {
+    if (offset == NULL ||
+        (instruction & 0xffe00c00u) != 0xf8400c00u) {
         return false;
     }
 
@@ -84,7 +136,8 @@ bool RorkHookDecodeLDRSignedPreIndex64(uint32_t instruction, intptr_t *offset) {
 bool RorkHookDecodeLDUR64(uint32_t instruction,
                           uint8_t baseRegister,
                           intptr_t *offset) {
-    if ((instruction & 0xffc00000u) != 0xf8400000u) {
+    if (offset == NULL ||
+        (instruction & 0xffe00c00u) != 0xf8400000u) {
         return false;
     }
     uint8_t source = (instruction >> 5) & 0x1fu;
@@ -96,9 +149,10 @@ bool RorkHookDecodeLDUR64(uint32_t instruction,
     return true;
 }
 
-/// Parses a 64-bit `MOVZ` immediate and reconstructs the shifted value.
+/// Parses a 64-bit `MOVZ` immediate and reconstructs its shifted value.
 bool RorkHookDecodeMOVZImmediate(uint32_t instruction, uintptr_t *value) {
-    if ((instruction & 0x7f800000u) != 0x52800000u) {
+    if (value == NULL ||
+        (instruction & 0xff800000u) != 0xd2800000u) {
         return false;
     }
 
@@ -110,11 +164,22 @@ bool RorkHookDecodeMOVZImmediate(uint32_t instruction, uintptr_t *value) {
 
 /// Follows one unconditional `B` veneer while deliberately ignoring `BL` calls.
 uint32_t *RorkHookFollowOneBranch(uint32_t *instructions) {
+    if (instructions == NULL) {
+        return instructions;
+    }
+
     uint32_t instruction = instructions[0];
     if ((instruction & 0xfc000000u) != 0x14000000u) {
         return instructions;
     }
 
     int64_t imm26 = RorkHookArm64SignExtend(instruction & 0x03ffffffu, 26);
-    return (uint32_t *)((uintptr_t)instructions + (uintptr_t)(imm26 << 2));
+    uintptr_t target = 0;
+    if (!RorkHookAddSignedOffset(
+            (uintptr_t)instructions,
+            imm26 * 4,
+            &target)) {
+        return instructions;
+    }
+    return (uint32_t *)target;
 }
