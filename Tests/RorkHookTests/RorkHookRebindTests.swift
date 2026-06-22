@@ -15,10 +15,11 @@ final class RorkHookRebindTests: XCTestCase {
         process.standardOutput = output
         process.standardError = output
         try process.run()
+        let diagnosticsData = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
 
         let diagnostics = String(
-            decoding: output.fileHandleForReading.readDataToEndOfFile(),
+            decoding: diagnosticsData,
             as: UTF8.self
         )
         XCTAssertEqual(process.terminationStatus, 0, diagnostics)

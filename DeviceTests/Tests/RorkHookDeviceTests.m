@@ -115,6 +115,14 @@ static const RorkHookMachHeader *RorkHookImageContainingAddress(
         RorkHookCallImportedGetpid(),
         RorkHookReplacementProcessIdentifier
     );
+
+    RorkHookRebindSymbolInImage(
+        testImage,
+        (void *)(uintptr_t)&RorkHookReplacementGetpid,
+        getpidAddress
+    );
+
+    XCTAssertEqual(RorkHookCallImportedGetpid(), originalProcessIdentifier);
 }
 
 @end

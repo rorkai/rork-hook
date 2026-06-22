@@ -29,13 +29,16 @@ final class RorkHookSymbolTests: XCTestCase {
             RorkHookTestSupportDestroyFileImageFixture(fixture)
         }
         let bytes = try XCTUnwrap(fixture.bytes)
-        let header = bytes.withMemoryRebound(to: RorkHookMachHeader.self, capacity: 1) { $0 }
-
-        let resolved = RorkHookFindSymbolInFileImageWithSize(
-            header,
-            fixture.size,
-            RorkHookTestSupportFileImageSymbolName()
-        )
+        let resolved = bytes.withMemoryRebound(
+            to: RorkHookMachHeader.self,
+            capacity: 1
+        ) { header in
+            RorkHookFindSymbolInFileImageWithSize(
+                header,
+                fixture.size,
+                RorkHookTestSupportFileImageSymbolName()
+            )
+        }
 
         XCTAssertEqual(resolved, UnsafeMutableRawPointer(bytes + fixture.symbolFileOffset))
     }
@@ -47,15 +50,18 @@ final class RorkHookSymbolTests: XCTestCase {
             RorkHookTestSupportDestroyFileImageFixture(fixture)
         }
         let bytes = try XCTUnwrap(fixture.bytes)
-        let header = bytes.withMemoryRebound(to: RorkHookMachHeader.self, capacity: 1) { $0 }
-
-        XCTAssertNil(
+        let resolved = bytes.withMemoryRebound(
+            to: RorkHookMachHeader.self,
+            capacity: 1
+        ) { header in
             RorkHookFindSymbolInFileImageWithSize(
                 header,
                 MemoryLayout<RorkHookMachHeader>.size,
                 RorkHookTestSupportFileImageSymbolName()
             )
-        )
+        }
+
+        XCTAssertNil(resolved)
     }
 
     /// Verifies that the compatibility lookup does not dereference load
