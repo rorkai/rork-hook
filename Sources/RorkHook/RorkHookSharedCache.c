@@ -4,6 +4,7 @@
 #include "RorkHookInternal.h"
 
 #include <dispatch/dispatch.h>
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <mach-o/nlist.h>
 #include <stddef.h>
@@ -178,6 +179,19 @@ const char *RorkHookLocateSharedCache(void) {
     static char cachePath[PATH_MAX];
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
+        // Cache file names carry device-specific suffixes such as
+        // `_arm64e_x1`, so ask dyld for the mapped cache before probing.
+        const char *(*activeCachePath)(void) = (const char *(*)(void))dlsym(
+            RTLD_DEFAULT,
+            "dyld_shared_cache_file_path");
+        const char *activePath = activeCachePath != NULL ? activeCachePath() : NULL;
+        if (activePath != NULL &&
+            strlcpy(cachePath, activePath, sizeof(cachePath)) < sizeof(cachePath) &&
+            access(cachePath, R_OK) == 0) {
+            return;
+        }
+        cachePath[0] = '\0';
+
         const char *sharedRegion = getenv("DYLD_SHARED_REGION");
         const char *sharedCacheDir = getenv("DYLD_SHARED_CACHE_DIR");
         if (sharedRegion != NULL &&
