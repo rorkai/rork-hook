@@ -77,11 +77,24 @@ static const RorkHookMachHeader *RorkHookImageContainingAddress(
     XCTAssertTrue(sharedCachePath[0] != '\0');
     XCTAssertEqual(access(sharedCachePath, R_OK), 0);
 
+    // iOS 27 gives dyld3::sVersionMap external linkage, which drops the `L`.
     void *versionMap = RorkHookFindSharedCacheSymbol(
         "/usr/lib/dyld",
-        "__ZN5dyld3L11sVersionMapE"
+        "__ZN5dyld311sVersionMapE"
     );
+    if (versionMap == NULL) {
+        versionMap = RorkHookFindSharedCacheSymbol(
+            "/usr/lib/dyld",
+            "__ZN5dyld3L11sVersionMapE"
+        );
+    }
     XCTAssertNotEqual(versionMap, NULL);
+
+    void *libSystemHelpers = RorkHookFindSharedCacheSymbol(
+        "/usr/lib/system/libdyld.dylib",
+        "__ZTVN5dyld416LibSystemHelpersE"
+    );
+    XCTAssertNotEqual(libSystemHelpers, NULL);
 }
 
 - (void)testAuthenticatedImportedSymbolRebinding {

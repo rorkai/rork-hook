@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Locate the shared cache through dyld's active cache path before probing
+  fixed architecture suffixes, so devices whose cache file carries an extra
+  suffix such as `dyld_shared_cache_arm64e_x1` resolve private symbols.
+
 ## 0.3.0 - 2026-06-22
 
 - Add `RorkHookReplaceFunctionWithSize` so callers can validate the available
