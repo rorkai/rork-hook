@@ -12,10 +12,13 @@ RORK_HOOK_ASSUME_NONNULL_BEGIN
 /// Returns the on-disk path of the active dyld shared cache for the running
 /// architecture, or an empty string when it cannot be located.
 ///
-/// The lookup honors a process-private cache (`DYLD_SHARED_REGION=private`
-/// with `DYLD_SHARED_CACHE_DIR`), then the iOS 16+ Cryptex location, then the
-/// pre-16 system location, and finally probes the architecture suffixes
-/// (`_arm64e`, `_arm64`, ...). The result is computed once and cached, so the
+/// The lookup first asks dyld for the mapped cache through
+/// `dyld_shared_cache_file_path()`, which also covers device-specific file names
+/// such as `dyld_shared_cache_arm64e_x1`. When dyld reports no readable path,
+/// it falls back to a process-private cache (`DYLD_SHARED_REGION=private` with
+/// `DYLD_SHARED_CACHE_DIR`), then the iOS 16+ Cryptex location, then the pre-16
+/// system location, and probes the architecture suffixes (`_arm64e`, `_arm64`,
+/// ...). The result is computed once and cached, so the
 /// returned pointer stays valid for the lifetime of the process and must not be
 /// freed. Process-private environment overrides must therefore be configured
 /// before the first call.
