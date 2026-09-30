@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 - 2026-10-01
 
 - Locate the shared cache through dyld's active cache path before probing
   fixed architecture suffixes, so devices whose cache file carries an extra
